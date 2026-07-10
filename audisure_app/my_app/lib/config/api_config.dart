@@ -1,3 +1,4 @@
 class ApiConfig {
-  static const String baseUrl = "http://192.168.1.24:5000";
+  static const String baseUrl =
+      "https//audisure-document-verification-system.onrender.com";
 }
