@@ -8,7 +8,6 @@ import ViewTasks from "./ViewTasks";
 import "../styles/dashboard.css";
 
 export default function UserDashboard() {
-  const navigate = useNavigate();
   const userFirstName = localStorage.getItem("firstName") || "Nigel";
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [activeFeature, setActiveFeature] = useState("dashboard");
