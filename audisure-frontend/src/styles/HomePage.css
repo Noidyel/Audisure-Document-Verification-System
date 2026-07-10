@@ -1,0 +1,447 @@
+/* General Layout */
+.home-container {
+  font-family: 'Inter', sans-serif;
+  background: #f9fafb;
+  min-height: 100vh;
+  position: relative;
+  padding-top: 0;    /* remove extra top padding */
+  padding-bottom: 5rem; /* space at bottom for features */
+}
+
+/* Top-left Audisure Portal Button */
+.top-left-portal {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 20;
+}
+.btn-portal {
+  padding: 0.5rem 1.5rem;
+  background-color: #dc2626;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  transition: 0.3s;
+}
+.btn-portal:hover {
+  background-color: #b91c1c;
+}
+
+/* Reusable Section Spacing */
+.section-spacing {
+  margin-top: 4rem;
+  margin-bottom: 4rem;
+}
+
+/* Top-right button */
+.hero-btn-top-right {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  z-index: 10;
+  padding: 0.5rem 1.5rem;
+  background-color: #dc2626;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  transition: 0.3s;
+}
+
+.hero-header {
+  position: relative;
+  height: 80vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #bd2424 0%, #fff5f5 100%); /* soft red-pink gradient complements the logo */
+  overflow: hidden;
+  transition: background 0.5s ease;
+}
+
+.hover-container {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* center in viewport */
+  gap: 2rem;
+  transition: all 0.6s ease;
+}
+
+/* Logo & title */
+.hero-logo-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.6s ease;
+  z-index: 2;
+}
+
+.logo-img {
+  width: 160px; /* bigger logo */
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+  background-color: #fff;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #e47878; /* matches logo red */
+  margin: 0;
+}
+
+/* Introduction hidden initially */
+.hero-intro {
+  max-width: 500px;
+  opacity: 0;
+  transform: translateX(50px);
+  transition: all 0.6s ease;
+  color: #343a40;
+  background: #fff;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+  position: relative;
+  z-index: 1;
+}
+
+/* Subtitle & description */
+.hero-subtitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.hero-description {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Hover effect to reveal intro */
+.hover-container:hover .hero-logo-title {
+  transform: translateX(-180px);
+  align-items: flex-start;
+}
+
+.hover-container:hover .hero-intro {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.hero-btn-top-right:hover { background-color: #b91c1c; }
+
+.hero-center-container {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* centers horizontally */
+  transition: all 0.5s ease;
+  max-width: 1000px;
+}
+
+.hero-content-container {
+  max-width: 72rem;
+  width: 100%;
+}
+
+
+.hero-logo-title img.logo-img {
+  width: 210px;
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+  background-color: #fff;
+}
+
+.hero-logo-title h1.hero-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #ffd0d0;
+}
+
+/* Intro hidden initially */
+.hero-intro {
+  max-width: 500px;
+  margin-left: 3rem;
+  opacity: 0;
+  transform: translateX(50px);
+  transition: all 0.5s ease;
+  color: #343a40;
+}
+
+.hero-subtitle {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.hero-logo-intro {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2rem;
+}
+
+.audisure-logo {
+  width: 6rem;
+  height: 6rem;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* QR Code Section */
+.qr-section {
+  max-width: 24rem;
+  margin: 0 auto;
+  background: #fff;
+  padding: 2.5rem 1.5rem;
+  border-radius: 2rem;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+  text-align: center;
+}
+
+.qr-img {
+  width: 250px;       
+  height: 250px;
+  object-fit: contain;
+  margin: 0 auto;
+  display: block;
+}
+
+.qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Features Section */
+.features-section {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.section-title {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 3rem;
+  color: #e73131;
+}
+
+.features-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: nowrap; /* Ensure all three cards stay in a row */
+}
+
+.user-card {
+  background: white;
+  border-radius: 1rem;
+  flex: 1 1 0; /* Let each card take equal width */
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+  min-width: 15rem; /* Prevent shrinking too much on small screens */
+}
+.user-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+.user-card h3 {
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.feature-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-card { border-top: 4px solid #dc2626; }
+.staff-card { border-top: 4px solid #f97316; }
+.applicant-card { border-top: 4px solid #3b82f6; }
+
+.admin-card .feature-icon { color: #dc2626; }
+.staff-card .feature-icon { color: #f97316; }
+.applicant-card .feature-icon { color: #3b82f6; }
+
+/* Modal Overlay & Content */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal-content {
+  background: #fff;
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  position: relative;
+  animation: fadeInScale 0.3s ease;
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: #555;
+  transition: color 0.2s;
+}
+.modal-close:hover { color: #dc2626; }
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #111827;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-form input {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+}
+.modal-form input:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+.modal-form button {
+  padding: 0.75rem;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.modal-form button:hover { background: #b91c1c; }
+
+.error-text {
+  color: #dc2626;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.register-text {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+.register-text a {
+  color: #dc2626;
+  font-weight: bold;
+  text-decoration: none;
+}
+.register-text a:hover { text-decoration: underline; }
+
+
+/* Initially hide the introduction text */
+.hover-container .intro-text {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease, opacity 0.5s ease;
+}
+
+/* Reveal intro on hover */
+.hero-center-container:hover .hero-logo-title {
+  transform: translateX(-120px);
+  align-items: flex-start;
+}
+
+.hero-center-container:hover .hero-intro {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.hover-container:hover .intro-text {
+  max-height: 500px; /* big enough to fit the text */
+  opacity: 1;
+}
+
+/* Hover instruction text */
+.hover-instruction {
+  font-size: 0.9rem;
+  color: #dc2626; /* matches logo red */
+  margin-top: 0.5rem;
+  font-weight: 600;
+  opacity: 0.8;
+  transition: transform 0.6s ease, opacity 0.6s ease;
+  animation: bounce 2s infinite;
+}
+
+/* Slight bounce animation for attention */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Move instruction along with logo when hovering */
+.hover-container:hover .hover-instruction {
+  transform: translateX(-180px);
+  opacity: 1;
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Responsive for small screens */
+@media (max-width: 768px) {
+  .features-grid {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .user-card {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+.features-section.hidden {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.features-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

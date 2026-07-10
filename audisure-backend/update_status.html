@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Update Document Status</title>
+</head>
+<body>
+  <h2>Update Document Status</h2>
+
+  <form id="statusForm">
+    <label>
+      Document UID:
+      <input type="text" id="uid" placeholder="e.g. WNN7NO" required />
+    </label>
+    <br><br>
+    <label>
+      Status:
+      <select id="status" required>
+        <option value="">--Select--</option>
+        <option value="Approved">Approved</option>
+        <option value="Pending">Pending</option>
+        <option value="Rejected">Rejected</option>
+      </select>
+    </label>
+    <br><br>
+    <label>
+      Admin ID:
+      <input type="number" id="adminId" placeholder="e.g. 1" required />
+    </label>
+    <br><br>
+    <button type="submit">Update Status</button>
+  </form>
+
+  <p id="result"></p>
+
+  <script>
+    document.getElementById("statusForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const uid = document.getElementById("uid").value.trim();
+      const status = document.getElementById("status").value;
+      const adminId = parseInt(document.getElementById("adminId").value);
+
+      try {
+        const res = await fetch(`http://localhost:5000/api/documents/update-status/${uid}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status, changed_by: adminId })
+        });
+
+        const data = await res.json();
+        document.getElementById("result").innerText = JSON.stringify(data, null, 2);
+      } catch (err) {
+        console.error(err);
+        document.getElementById("result").innerText = "Error updating status. Check console.";
+      }
+    });
+  </script>
+</body>
+</html>

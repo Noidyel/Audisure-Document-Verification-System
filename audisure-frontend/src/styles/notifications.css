@@ -1,0 +1,95 @@
+/* ===============================
+   Notifications Page Styling
+   =============================== */
+
+.notifications-page {
+  max-width: 850px;
+  margin: 3rem auto;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  font-family: "Segoe UI", sans-serif;
+  color: #333;
+}
+
+.notifications-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #b22222; /* HCDRD red accent */
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.notifications-description {
+  text-align: center;
+  color: #666;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+}
+
+.loading-text,
+.no-notifications {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 1rem;
+}
+
+.notifications-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.notification-item {
+  background: #f9f9f9;
+  border-left: 5px solid #b22222;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1rem;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.notification-item:hover {
+  background: #fff5f5;
+  transform: scale(1.01);
+}
+
+.notif-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notif-title {
+  font-size: 1.1rem;
+  color: #222;
+  font-weight: 600;
+}
+
+.notif-time {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.notif-message {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: #444;
+  line-height: 1.5;
+}
+
+/* Back to Dashboard (optional) */
+.back-link {
+  display: inline-block;
+  margin-top: 1.5rem;
+  text-decoration: none;
+  color: #b22222;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.back-link:hover {
+  color: #7a1414;
+}

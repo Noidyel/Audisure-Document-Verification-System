@@ -1,0 +1,103 @@
+/* register.css */
+
+/* Full page container */
+.register-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+  background-color: #f9f9f9;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Register box */
+.register-box {
+  background-color: #fff;
+  padding: 2.5rem 2rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* Form inputs */
+.register-box input[type="text"],
+.register-box input[type="email"],
+.register-box input[type="password"] {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1.2rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+/* Show/hide password container */
+.password-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 1.2rem;
+}
+
+.password-container input {
+  width: 100%;
+  padding-right: 2.5rem; /* space for toggle */
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 1.1rem;
+}
+
+/* Red button */
+.register-box .btn-register {
+  background-color: #dc3545; /* HCDRD red accent */
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1rem;
+  width: 100%;
+  font-size: 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.register-box .btn-register:hover {
+  background-color: #b02a37;
+}
+
+/* Error message */
+.register-box .error-message {
+  color: #dc3545;
+  margin-top: 0.5rem;
+  font-weight: 500;
+  word-break: break-word;
+  text-align: left;
+}
+
+/* Login link */
+.register-box .login-link {
+  display: block;
+  margin-top: 1.2rem;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.register-box .login-link a {
+  color: #dc3545;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.register-box .login-link a:hover {
+  text-decoration: underline;
+}

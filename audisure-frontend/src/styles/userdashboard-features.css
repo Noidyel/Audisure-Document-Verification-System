@@ -1,0 +1,133 @@
+/* ================================
+   Feature Header & Description
+   For Upload, Status, and Tasks
+================================= */
+
+/* Container for page content */
+.feature-container {
+  max-width: 850px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Feature Title */
+.feature-header {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #b71c1c; /* HCDRD red accent */
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+/* Feature Description */
+.feature-description {
+  font-size: 1rem;
+  color: #555; /* dark gray */
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: 2rem;
+}
+
+/* ================================
+   Table Styling (Documents & Tasks)
+================================= */
+
+table {
+  width: 95%;
+  max-width: 1000px;
+  margin: 20px auto;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+th, td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background-color: #b71c1c;
+  color: white;
+  font-weight: normal;
+}
+
+td a {
+  color: #b71c1c;
+  text-decoration: none;
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+td a:hover {
+  text-decoration: underline;
+}
+
+/* Status Labels */
+.status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status.pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status.in-progress {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.status.completed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status.approved {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status.rejected {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Buttons */
+button {
+  border: none;
+  border-radius: 5px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.btn-red {
+  background-color: #b71c1c;
+  color: white;
+}
+
+.btn-red:hover {
+  background-color: #8c1515;
+}
+
+/* Status message */
+.status-message {
+  text-align: center;
+  font-weight: 600;
+  margin: 16px 0;
+  color: #28a745;
+}

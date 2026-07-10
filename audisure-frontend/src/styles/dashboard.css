@@ -1,0 +1,377 @@
+/* ========================
+   DASHBOARD LAYOUT
+======================== */
+.dashboard-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  background: #f9fafb;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.dashboard-content {
+  flex: 1;
+  padding: 2rem 3rem;
+  margin-left: 60px; /* collapsed sidebar space */
+  overflow-y: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  transition: margin-left 0.4s ease; /* smooth shift */
+}
+
+/* ========================
+   SIDEBAR
+======================== */
+.sidebar {
+  width: 60px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, #111827, #1F2937);
+  color: #fff;
+  padding: 0 12px;
+  overflow-y: auto;
+  transition: width 0.4s ease, background 0.4s ease;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  box-sizing: border-box;
+  z-index: 200;
+}
+
+.sidebar:hover {
+  width: 220px;
+}
+
+.sidebar-title {
+  font-size: 20px;
+  margin: 24px 0;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar:hover .sidebar-title {
+  opacity: 1;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 10px;
+  margin: 6px 0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.menu-item span {
+  margin-left: 12px;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.sidebar:hover .menu-item span {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-item.active {
+  background: rgba(220, 38, 38, 0.2);
+}
+
+.logged-in {
+  margin-top: 30px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar:hover ~ .dashboard-content {
+  margin-left: 220px;
+}
+
+.sidebar:hover .logged-in {
+  opacity: 1;
+}
+
+/* ========================
+   TOPBAR
+======================== */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 60px;
+  right: 0;
+  height: 68px;
+  padding: 0 24px;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  z-index: 150;
+  transition: left 0.4s ease;
+}
+
+.sidebar:hover ~ .topbar {
+  left: 220px;
+}
+
+.topbar h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.topbar .actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* ========================
+   DROPDOWN
+======================== */
+.user-dropdown {
+  position: relative;
+}
+
+.user-dropdown-content {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.user-dropdown-content button {
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.user-dropdown-content button:hover {
+  background: #f4f4f5;
+}
+
+/* ========================
+   FEATURE / DASHBOARD CARDS
+======================== */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin: 2rem 0;
+  width: 100%;
+}
+
+/* New feature card design */
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+  border-left: 5px solid #dc3545; /* HCDRD red accent */
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-left-color 0.25s ease;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 180px;
+}
+
+.card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 10px 18px rgba(0,0,0,0.12);
+  border-left-color: #b32434; /* darker red on hover */
+}
+
+.card strong {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #1f2937;
+}
+
+.card p {
+  font-size: 0.95rem;
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+/* Icon badge for feature cards */
+.card .feature-card-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #dc3545;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+/* ========================
+   RECENT ACTIVITIES
+======================== */
+.recent-activities {
+  margin-top: 2rem;
+  background-color: #f8f9fa;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.recent-activities h3,
+.recent-activities h2 {
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #dc3545;
+}
+
+.recent-activities ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recent-activities li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.recent-activities li:last-child {
+  border-bottom: none;
+}
+
+.activity-text {
+  font-weight: 500;
+}
+
+.activity-time {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+/* Grid-style activities (admin cards) */
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.activity-card {
+  background: #fff;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.activity-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+
+.activity-card h4 {
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.activity-card p {
+  font-size: 0.9rem;
+  color: #444;
+  margin-bottom: 0.25rem;
+}
+
+.activity-card small {
+  display: block;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+/* ========================
+   MODAL
+======================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+}
+
+.modal {
+  background: #fff;
+  padding: 28px;
+  border-radius: 12px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.confirm-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.confirm-btn:hover {
+  background: #dc2626;
+}
+
+.cancel-btn {
+  background: #f3f3f3;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.cancel-btn:hover {
+  background: #e5e7eb;
+}

@@ -1,0 +1,127 @@
+/* ===========================
+   Status Page Styles
+   (status.css)
+=========================== */
+
+/* Page Container */
+.page-container {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Page Header */
+.page-title {
+  font-size: 1.8rem;
+  color: #b41f1f; /* HCDRD red accent */
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.page-description {
+  text-align: center;
+  color: #555;
+  margin-bottom: 1.5rem;
+}
+
+/* Table Container */
+.table-wrapper {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.status-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #ddd;
+  background-color: #fafafa;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Table Header */
+.status-table thead {
+  background-color: #b41f1f; /* Red theme */
+  color: #fff;
+}
+
+.status-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* Table Body */
+.status-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  color: #333;
+}
+
+/* Alternate Row Color */
+.status-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* Hover Effect */
+.status-table tbody tr:hover {
+  background-color: #f1f1f1;
+  transition: background-color 0.3s ease;
+}
+
+/* Status Tags */
+.status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status.approved {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status.pending,
+.status.in_review {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status.rejected,
+.status.needs-editing {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.status.processing {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+/* Loading / Error / Empty State */
+.page-container p {
+  text-align: center;
+  color: #666;
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+
+/* Responsive Table */
+@media (max-width: 768px) {
+  .status-table th,
+  .status-table td {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+
+  .page-container {
+    padding: 1rem;
+  }
+}

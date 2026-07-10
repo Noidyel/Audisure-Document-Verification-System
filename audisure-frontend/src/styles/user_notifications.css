@@ -1,0 +1,104 @@
+/* ===============================
+   Notifications Page Styles
+   (notifications.css)
+=============================== */
+
+/* Page Container */
+.page-container {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Page Title */
+.page-title {
+  font-size: 1.8rem;
+  color: #b41f1f; /* HCDRD red accent */
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.page-description {
+  text-align: center;
+  color: #555;
+  margin-bottom: 1.5rem;
+}
+
+/* Notifications List */
+.notifications-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Notification Card */
+.notification-item {
+  background-color: #fafafa;
+  border-left: 5px solid #b41f1f; /* HCDRD red */
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1rem;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.notification-item:hover {
+  background-color: #fff5f5;
+  transform: translateY(-2px);
+}
+
+/* Notification Header */
+.notif-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notif-title {
+  font-size: 1.1rem;
+  color: #222;
+  font-weight: 600;
+}
+
+.notif-time {
+  font-size: 0.9rem;
+  color: #888;
+  font-style: italic;
+}
+
+/* Notification Message */
+.notif-message {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: #444;
+  line-height: 1.5;
+}
+
+/* Loading, Empty, and Error States */
+.loading-text,
+.no-notifications,
+.error-text {
+  text-align: center;
+  color: #666;
+  font-size: 1rem;
+  margin-top: 1.5rem;
+  font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 1rem;
+  }
+
+  .notif-title {
+    font-size: 1rem;
+  }
+
+  .notif-message {
+    font-size: 0.9rem;
+  }
+}

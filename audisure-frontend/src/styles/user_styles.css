@@ -1,0 +1,163 @@
+/* ===== General Feature Container ===== */
+.feature-container {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 800px;
+  margin: 2rem auto;
+  text-align: center;
+  font-family: 'Arial', sans-serif; /* Formal, senior-friendly */
+}
+
+/* ===== Headings ===== */
+.feature-container h2 {
+  margin-bottom: 1.5rem;
+  font-weight: bold;
+  color: #dc3545; /* Red accent from HCDRD */
+}
+
+/* ===== Forms ===== */
+.feature-container form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.feature-container input[type="file"],
+.feature-container input[type="text"],
+.feature-container input[type="email"],
+.feature-container input[type="password"] {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+/* ===== Buttons ===== */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.btn-red {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-red:hover {
+  background-color: #b02a37;
+}
+
+/* ===== Status Labels ===== */
+.status {
+  font-weight: bold;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: white;
+  display: inline-block;
+}
+
+.status.pending {
+  background-color: #f0ad4e; /* yellow/orange */
+}
+
+.status.in-progress {
+  background-color: #0275d8; /* blue */
+}
+
+.status.completed {
+  background-color: #5cb85c; /* green */
+}
+
+/* ===== Tables ===== */
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.task-table th,
+.task-table td {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.task-table th {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* ===== Uploaded Document Box (CheckStatus / UploadAndReviewDocuments) ===== */
+.uploaded-doc {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 500px;
+  text-align: left;
+  background-color: #fafafa;
+  word-break: break-word; /* Prevent overlap */
+}
+
+/* ===== Uploading Bar ===== */
+.uploading-bar {
+  width: 50%;
+  height: 10px;
+  background-color: #f5f5f5;
+  margin-top: 1rem;
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.uploading-bar > div {
+  width: 100%;
+  height: 100%;
+  background-color: #dc3545;
+  animation: loading 2s linear infinite;
+}
+
+@keyframes loading {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ===== Messages ===== */
+.feature-container p {
+  margin-top: 1rem;
+  color: darkred;
+}
+
+/* ===== Links ===== */
+.feature-container a {
+  color: #dc3545;
+  text-decoration: none;
+}
+
+.feature-container a:hover {
+  text-decoration: underline;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+  .feature-container {
+    padding: 1rem;
+  }
+  
+  .uploading-bar, 
+  .uploaded-doc, 
+  .task-table {
+    width: 100%;
+  }
+}
