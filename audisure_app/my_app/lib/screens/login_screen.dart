@@ -56,13 +56,37 @@ class _LoginScreenState extends State<LoginScreen> {
           final user = data['user'];
           final prefs = await SharedPreferences.getInstance();
 
-          // ✅ Store user details for profile & status screens
-          await prefs.setInt('user_id', user['id']);
-          await prefs.setString('user_email', user['email'] ?? '');
-          await prefs.setString('first_name', user['firstName'] ?? '');
-          await prefs.setString('last_name', user['lastName'] ?? '');
-          await prefs.setString('user_role', user['role'] ?? '');
-          await prefs.setString('user_status', user['status'] ?? '');
+          final int userId =
+              user['id'] is int
+                  ? user['id']
+                  : int.tryParse(user['id'].toString()) ?? 0;
+
+          final String email = (user['email'] ?? '').toString();
+
+          final String firstName =
+              (user['first_name'] ?? user['firstName'] ?? '').toString();
+
+          final String lastName =
+              (user['last_name'] ?? user['lastName'] ?? '').toString();
+
+          final String role = (user['role'] ?? '').toString();
+
+          final String status = (user['status'] ?? '').toString();
+
+          await prefs.setInt('user_id', userId);
+
+          await prefs.setString('email', email);
+          await prefs.setString('user_email', email);
+
+          await prefs.setString('first_name', firstName);
+          await prefs.setString('last_name', lastName);
+
+          await prefs.setString('user_role', role);
+          await prefs.setString('user_status', status);
+
+          debugPrint('Saved user ID: $userId');
+          debugPrint('Saved email: $email');
+          debugPrint('Saved name: $firstName $lastName');
 
           _showMessage(t("Login successful", "Matagumpay ang pag-login"));
 

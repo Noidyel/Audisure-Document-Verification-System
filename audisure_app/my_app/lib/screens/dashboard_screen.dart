@@ -5,10 +5,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'document_upload_screen.dart';
-import 'my_applications_screen.dart';
-import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'status_screen.dart';
+
+import 'package:my_app/screens/my_applications_screen.dart' as my_applications;
+import 'package:my_app/screens/notifications_screen.dart' as app_notifications;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -20,8 +21,8 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   static const Color primaryRed = Color(0xFFD32F2F);
 
-  // Change this only if your backend URL is different.
-  static const String backendUrl = 'https://audisure-backend.onrender.com';
+  static const String backendUrl =
+      'https://audisure-document-verification-system.onrender.com';
 
   String firstName = '';
   String lastName = '';
@@ -55,7 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       firstName = prefs.getString('first_name') ?? '';
       lastName = prefs.getString('last_name') ?? '';
-      email = prefs.getString('email') ?? '';
+      email = prefs.getString('email') ?? prefs.getString('user_email') ?? '';
     });
   }
 
@@ -71,20 +72,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       final response = await http.get(
         Uri.parse('$backendUrl/api/notifications/unread-count/$encodedEmail'),
-        headers: {'Accept': 'application/json'},
+        headers: const {'Accept': 'application/json'},
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final dynamic decodedResponse = jsonDecode(response.body);
 
-        if (!mounted) return;
+        if (decodedResponse is Map<String, dynamic>) {
+          final dynamic rawCount = decodedResponse['unread_count'] ?? 0;
 
-        setState(() {
-          unreadNotificationCount =
-              int.tryParse(data['unread_count'].toString()) ?? 0;
-        });
+          if (!mounted) return;
+
+          setState(() {
+            unreadNotificationCount = int.tryParse(rawCount.toString()) ?? 0;
+          });
+        }
       } else {
-        debugPrint('Unable to load notification count: ${response.statusCode}');
+        debugPrint(
+          'Unable to load notification count. '
+          'Status: ${response.statusCode}, '
+          'Body: ${response.body}',
+        );
       }
     } catch (error) {
       debugPrint('Notification count error: $error');
@@ -98,19 +106,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openScreen(Widget screen) async {
-    await Navigator.push(
+    await Navigator.of(
       context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
+    ).push(MaterialPageRoute<void>(builder: (context) => screen));
 
-    // Reload the badge when the applicant returns to the dashboard.
     await _loadUnreadNotificationCount();
+  }
+
+  void _openUploadScreen() {
+    _openScreen(const DocumentUploadScreen());
+  }
+
+  void _openMyApplicationsScreen() {
+    _openScreen(const my_applications.MyApplicationsScreen());
+  }
+
+  void _openStatusScreen() {
+    _openScreen(const StatusScreen());
+  }
+
+  void _openNotificationsScreen() {
+    _openScreen(const app_notifications.NotificationsScreen());
+  }
+
+  void _openProfileScreen() {
+    _openScreen(const ProfileScreen());
   }
 
   @override
   Widget build(BuildContext context) {
-    const Color white = Colors.white;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -121,16 +145,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         backgroundColor: primaryRed,
-        foregroundColor: white,
+        foregroundColor: Colors.white,
         centerTitle: true,
         actions: [
           _buildNotificationButton(),
           IconButton(
             tooltip: t('Profile', 'Profile'),
             icon: const Icon(Icons.person_outline),
-            onPressed: () {
-              _openScreen(const ProfileScreen());
-            },
+            onPressed: _openProfileScreen,
           ),
         ],
       ),
@@ -143,6 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: RefreshIndicator(
                 onRefresh: _loadUnreadNotificationCount,
                 child: GridView.count(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   crossAxisCount: 2,
                   crossAxisSpacing: 16,
@@ -151,31 +174,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _buildModuleCard(
                       icon: Icons.upload_file,
                       label: t('Upload Document', 'Mag-upload ng Dokumento'),
-                      onTap: () {
-                        _openScreen(const DocumentUploadScreen());
-                      },
+                      onTap: _openUploadScreen,
                     ),
                     _buildModuleCard(
                       icon: Icons.folder_copy_outlined,
                       label: t('My Applications', 'Aking mga Application'),
-                      onTap: () {
-                        _openScreen(const MyApplicationsScreen());
-                      },
+                      onTap: _openMyApplicationsScreen,
                     ),
                     _buildModuleCard(
                       icon: Icons.manage_search,
                       label: t('Track by UID', 'Hanapin gamit ang UID'),
-                      onTap: () {
-                        _openScreen(const StatusScreen());
-                      },
+                      onTap: _openStatusScreen,
                     ),
                     _buildModuleCard(
                       icon: Icons.notifications_none,
                       label: t('Notifications', 'Mga Abiso'),
                       badgeCount: unreadNotificationCount,
-                      onTap: () {
-                        _openScreen(const NotificationsScreen());
-                      },
+                      onTap: _openNotificationsScreen,
                     ),
                   ],
                 ),
@@ -184,7 +199,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              color: white,
+              color: Colors.white,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -208,7 +223,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: primaryRed.withValues(alpha: 0.08),
+        color: primaryRed.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -230,9 +245,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         IconButton(
           tooltip: t('Notifications', 'Mga Abiso'),
           icon: const Icon(Icons.notifications_outlined),
-          onPressed: () {
-            _openScreen(const NotificationsScreen());
-          },
+          onPressed: _openNotificationsScreen,
         ),
         if (unreadNotificationCount > 0)
           Positioned(
@@ -272,10 +285,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     int badgeCount = 0,
   }) {
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 4,
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -338,11 +351,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return GestureDetector(
       onTap: () {
-        if (isEnglish != english) {
-          setState(() {
-            isEnglish = english;
-          });
-        }
+        if (isEnglish == english) return;
+
+        setState(() {
+          isEnglish = english;
+        });
       },
       child: Text(
         label,
