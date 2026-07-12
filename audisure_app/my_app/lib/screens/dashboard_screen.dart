@@ -1,61 +1,135 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'document_upload_screen.dart';
+import 'my_applications_screen.dart';
+import 'notifications_screen.dart';
+import 'profile_screen.dart';
 import 'status_screen.dart';
-import 'profile_screen.dart'; // ✅ Import the ProfileScreen
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  static const Color primaryRed = Color(0xFFD32F2F);
+
+  // Change this only if your backend URL is different.
+  static const String backendUrl = 'https://audisure-backend.onrender.com';
+
   String firstName = '';
   String lastName = '';
-  bool isEnglish = true;
+  String email = '';
 
-  String t(String en, String tl) => isEnglish ? en : tl;
+  bool isEnglish = true;
+  bool isLoadingNotifications = false;
+
+  int unreadNotificationCount = 0;
+
+  String t(String english, String tagalog) {
+    return isEnglish ? english : tagalog;
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _initializeDashboard();
+  }
+
+  Future<void> _initializeDashboard() async {
+    await _loadUserData();
+    await _loadUnreadNotificationCount();
   }
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
+
+    if (!mounted) return;
+
     setState(() {
       firstName = prefs.getString('first_name') ?? '';
       lastName = prefs.getString('last_name') ?? '';
+      email = prefs.getString('email') ?? '';
     });
+  }
+
+  Future<void> _loadUnreadNotificationCount() async {
+    if (email.isEmpty || isLoadingNotifications) return;
+
+    setState(() {
+      isLoadingNotifications = true;
+    });
+
+    try {
+      final encodedEmail = Uri.encodeComponent(email);
+
+      final response = await http.get(
+        Uri.parse('$backendUrl/api/notifications/unread-count/$encodedEmail'),
+        headers: {'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (!mounted) return;
+
+        setState(() {
+          unreadNotificationCount =
+              int.tryParse(data['unread_count'].toString()) ?? 0;
+        });
+      } else {
+        debugPrint('Unable to load notification count: ${response.statusCode}');
+      }
+    } catch (error) {
+      debugPrint('Notification count error: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingNotifications = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openScreen(Widget screen) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+
+    // Reload the badge when the applicant returns to the dashboard.
+    await _loadUnreadNotificationCount();
   }
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryRed = Color(0xFFD32F2F);
     const Color white = Colors.white;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          t("Dashboard", "Dashboard"),
+          t('Dashboard', 'Dashboard'),
           style: const TextStyle(
             fontFamily: 'Inter',
             fontWeight: FontWeight.w600,
           ),
         ),
         backgroundColor: primaryRed,
+        foregroundColor: white,
         centerTitle: true,
         actions: [
+          _buildNotificationButton(),
           IconButton(
+            tooltip: t('Profile', 'Profile'),
             icon: const Icon(Icons.person_outline),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
+              _openScreen(const ProfileScreen());
             },
           ),
         ],
@@ -63,51 +137,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            if (firstName.isNotEmpty) _buildWelcomeSection(),
+
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+              child: RefreshIndicator(
+                onRefresh: _loadUnreadNotificationCount,
                 child: GridView.count(
+                  padding: const EdgeInsets.all(16),
                   crossAxisCount: 2,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   children: [
-                    // In the DashboardScreen GridView
-_buildModuleCard(
-  icon: Icons.upload_file,
-  label: t("Document Upload", "Mag-upload ng Dokumento"),
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => const DocumentUploadScreen()),
-    );
-  },
-),
                     _buildModuleCard(
-                      icon: Icons.insert_drive_file_outlined,
-                      label: t("Document Status", "Status ng Dokumento"),
+                      icon: Icons.upload_file,
+                      label: t('Upload Document', 'Mag-upload ng Dokumento'),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const StatusScreen()),
-                        );
+                        _openScreen(const DocumentUploadScreen());
+                      },
+                    ),
+                    _buildModuleCard(
+                      icon: Icons.folder_copy_outlined,
+                      label: t('My Applications', 'Aking mga Application'),
+                      onTap: () {
+                        _openScreen(const MyApplicationsScreen());
+                      },
+                    ),
+                    _buildModuleCard(
+                      icon: Icons.manage_search,
+                      label: t('Track by UID', 'Hanapin gamit ang UID'),
+                      onTap: () {
+                        _openScreen(const StatusScreen());
+                      },
+                    ),
+                    _buildModuleCard(
+                      icon: Icons.notifications_none,
+                      label: t('Notifications', 'Mga Abiso'),
+                      badgeCount: unreadNotificationCount,
+                      onTap: () {
+                        _openScreen(const NotificationsScreen());
                       },
                     ),
                   ],
                 ),
               ),
             ),
-            // Language Toggle
+
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               color: white,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _languageButton("English", true),
+                  _languageButton('English', true),
                   const SizedBox(width: 12),
-                  _languageButton("Tagalog", false),
+                  _languageButton('Tagalog', false),
                 ],
               ),
             ),
@@ -117,38 +200,132 @@ _buildModuleCard(
     );
   }
 
-  Widget _buildModuleCard(
-      {required IconData icon,
-      required String label,
-      required VoidCallback onTap}) {
-    const Color primaryRed = Color(0xFFD32F2F);
-    const Color white = Colors.white;
+  Widget _buildWelcomeSection() {
+    final fullName = '$firstName $lastName'.trim();
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: primaryRed.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        t('Welcome, $fullName!', 'Maligayang pagdating, $fullName!'),
+        style: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
         ),
-        elevation: 4,
-        color: white,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 48, color: primaryRed),
-              const SizedBox(height: 16),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+      ),
+    );
+  }
+
+  Widget _buildNotificationButton() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          tooltip: t('Notifications', 'Mga Abiso'),
+          icon: const Icon(Icons.notifications_outlined),
+          onPressed: () {
+            _openScreen(const NotificationsScreen());
+          },
+        ),
+        if (unreadNotificationCount > 0)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: IgnorePointer(
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: primaryRed, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  unreadNotificationCount > 99
+                      ? '99+'
+                      : unreadNotificationCount.toString(),
+                  style: const TextStyle(
+                    color: primaryRed,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildModuleCard({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    int badgeCount = 0,
+  }) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Stack(
+            children: [
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 48, color: primaryRed),
+                    const SizedBox(height: 16),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (badgeCount > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    decoration: BoxDecoration(
+                      color: primaryRed,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      badgeCount > 99 ? '99+' : badgeCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -157,11 +334,15 @@ _buildModuleCard(
   }
 
   Widget _languageButton(String label, bool english) {
-    const Color primaryRed = Color(0xFFD32F2F);
     const Color mediumGrey = Color(0xFF757575);
+
     return GestureDetector(
       onTap: () {
-        if (isEnglish != english) setState(() => isEnglish = english);
+        if (isEnglish != english) {
+          setState(() {
+            isEnglish = english;
+          });
+        }
       },
       child: Text(
         label,

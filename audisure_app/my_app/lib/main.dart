@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '/screens/login_screen.dart';
 import '/screens/register_screen.dart';
 import '/screens/status_screen.dart';
-import '/screens/notification_screen.dart';
 import '/screens/dashboard_screen.dart'; // ✅ Import the new dashboard
 
 void main() {
@@ -22,8 +21,8 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/status': (context) => const StatusScreen(),
-        '/notifications': (context) => const NotificationsScreen(),
-        '/dashboard': (context) => const DashboardScreen(), // ✅ Add dashboard route
+        '/dashboard':
+            (context) => const DashboardScreen(), // ✅ Add dashboard route
       },
     );
   }

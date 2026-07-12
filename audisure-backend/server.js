@@ -10,7 +10,7 @@ import documentsRoutes from "./routes/documents.js"; // existing documents route
 import tasksRoutes from "./routes/tasks.js";
 import statusRoutes from "./routes/status.js"; // documents status
 import documentsMetaRoutes from "./routes/documents_meta.js"; // <-- new route
-
+import notificationsRoutes from "./routes/notifications.js";
 import db from "./db.js"; // MySQL pool
 
 dotenv.config();
@@ -27,6 +27,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/documents", documentsRoutes);
 app.use("/api/tasks", tasksRoutes);
 app.use("/api/status", statusRoutes);
+app.use("/api/notifications", notificationsRoutes);
 app.use("/api/documents_meta", documentsMetaRoutes);
 app.use("/api/document_search", documentSearchRoutes);
 
@@ -44,6 +45,7 @@ app.get("/", (req, res) => {
         <li><a href="/api/admin">/api/admin</a></li>
         <li><a href="/api/upload">/api/upload</a></li>
         <li><a href="/api/documents">/api/documents</a></li>
+        <li><a href="/api/notifications">/api/notifications</a></li>
         <li><a href="/api/tasks">/api/tasks</a></li>
         <li><a href="/api/status">/api/status</a></li>
         <li><a href="/api/documents_meta/types">/api/documents_meta/types</a></li>
