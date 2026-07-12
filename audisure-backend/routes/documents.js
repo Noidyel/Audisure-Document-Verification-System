@@ -1,5 +1,6 @@
 import express from "express";
 import db from "../db.js";
+import cloudinary from "../config/cloudinary.js";
 
 const router = express.Router();
 
@@ -14,13 +15,47 @@ function normalizeStatus(status) {
     .replace(/\s+/g, "_");
 }
 
-function getNotificationContent(status, documentTitle, remarks) {
-  const title = documentTitle || "your submitted document";
+async function moveCloudinaryAsset({
+  publicId,
+  resourceType = "image",
+  destinationFolder,
+}) {
+  if (!publicId) {
+    throw new Error(
+      "The document has no Cloudinary public ID and cannot be moved."
+    );
+  }
+
+  const result = await cloudinary.uploader.explicit(publicId, {
+    type: "upload",
+    resource_type: resourceType || "image",
+    asset_folder: destinationFolder,
+  });
+
+  return {
+    publicId: result.public_id || publicId,
+    assetId: result.asset_id || null,
+    secureUrl: result.secure_url || null,
+    resourceType:
+      result.resource_type || resourceType || "image",
+    assetFolder:
+      result.asset_folder || destinationFolder,
+  };
+}
+
+function getNotificationContent(
+  status,
+  documentTitle,
+  remarks
+) {
+  const title =
+    documentTitle || "your submitted document";
 
   switch (status) {
     case "needs_revision":
       return {
-        notificationTitle: "Document Needs Revision",
+        notificationTitle:
+          "Document Needs Revision",
         message: remarks
           ? `${title} requires revision. Staff remarks: ${remarks}`
           : `${title} requires revision. Open the application to view more information.`,
@@ -30,21 +65,25 @@ function getNotificationContent(status, documentTitle, remarks) {
     case "verified":
     case "pending_admin":
       return {
-        notificationTitle: "Document Verified by Staff",
-        message: `${title} has been verified by staff and forwarded for final review.`,
+        notificationTitle:
+          "Document Verified by Staff",
+        message:
+          `${title} has been verified by staff and forwarded for final review.`,
         notificationType: "pending_admin",
       };
 
     case "approved":
       return {
-        notificationTitle: "Application Approved",
+        notificationTitle:
+          "Application Approved",
         message: `${title} has been approved.`,
         notificationType: "approved",
       };
 
     case "rejected":
       return {
-        notificationTitle: "Application Rejected",
+        notificationTitle:
+          "Application Rejected",
         message: remarks
           ? `${title} was rejected. Reason: ${remarks}`
           : `${title} was rejected.`,
@@ -53,8 +92,10 @@ function getNotificationContent(status, documentTitle, remarks) {
 
     default:
       return {
-        notificationTitle: "Document Status Updated",
-        message: `${title} now has the status: ${status.replaceAll("_", " ")}.`,
+        notificationTitle:
+          "Document Status Updated",
+        message:
+          `${title} now has the status: ${status.replaceAll("_", " ")}.`,
         notificationType: "general",
       };
   }
@@ -62,8 +103,10 @@ function getNotificationContent(status, documentTitle, remarks) {
 
 /* ======================================================
    GET ALL DOCUMENTS
+
    GET /api/documents
 ====================================================== */
+
 router.get("/", async (req, res) => {
   try {
     const [rows] = await db.query(`
@@ -72,7 +115,12 @@ router.get("/", async (req, res) => {
         d.document_uid,
         d.user_id,
 
-        CONCAT(u.first_name, ' ', u.last_name) AS applicant_name,
+        CONCAT(
+          u.first_name,
+          ' ',
+          u.last_name
+        ) AS applicant_name,
+
         u.email AS user_email,
 
         d.document_type_id,
@@ -81,7 +129,17 @@ router.get("/", async (req, res) => {
 
         d.title,
         d.cloudinary_url,
+        d.cloudinary_public_id,
+        d.cloudinary_asset_id,
+        d.cloudinary_resource_type,
+        d.cloudinary_folder,
+
         d.document_hash,
+        d.approved_hash,
+        d.approved_by,
+        d.approved_at,
+        d.is_locked,
+
         d.version,
         d.status,
         d.remarks,
@@ -99,16 +157,21 @@ router.get("/", async (req, res) => {
       ORDER BY d.created_at DESC
     `);
 
-    res.json({
+    return res.json({
       success: true,
       documents: rows,
     });
-  } catch (err) {
-    console.error("GET DOCUMENTS ERROR:", err);
+  } catch (error) {
+    console.error(
+      "GET DOCUMENTS ERROR:",
+      error
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch documents.",
+      message:
+        error.sqlMessage ||
+        "Failed to fetch documents.",
     });
   }
 });
@@ -118,431 +181,728 @@ router.get("/", async (req, res) => {
 
    GET /api/documents/applicant/:email
 ====================================================== */
-router.get("/applicant/:email", async (req, res) => {
-  const { email } = req.params;
 
-  try {
-    const [rows] = await db.query(
-      `
-      SELECT
-        d.id,
-        d.document_uid,
-        d.user_id,
-        d.document_type_id,
+router.get(
+  "/applicant/:email",
+  async (req, res) => {
+    const { email } = req.params;
 
-        d.title,
-        d.cloudinary_url,
-        d.document_hash,
-        d.version,
-        d.status,
-        d.remarks,
+    try {
+      const [rows] = await db.query(
+        `
+        SELECT
+          d.id,
+          d.document_uid,
+          d.user_id,
+          d.document_type_id,
 
-        d.remarks AS revision_remarks,
+          d.title,
+          d.cloudinary_url,
+          d.cloudinary_public_id,
+          d.cloudinary_asset_id,
+          d.cloudinary_resource_type,
+          d.cloudinary_folder,
 
-        d.created_at,
-        d.updated_at,
+          d.document_hash,
+          d.approved_hash,
+          d.approved_at,
+          d.is_locked,
 
-        dt.code,
-        dt.name AS document_type,
-        dt.name AS main_application_type,
+          d.version,
+          d.status,
+          d.remarks,
+          d.remarks AS revision_remarks,
 
-        CONCAT(u.first_name, ' ', u.last_name) AS applicant_name,
-        u.email AS user_email
+          d.created_at,
+          d.updated_at,
 
-      FROM documents d
+          dt.code,
+          dt.name AS document_type,
+          dt.name AS main_application_type,
 
-      JOIN users u
-        ON d.user_id = u.id
+          CONCAT(
+            u.first_name,
+            ' ',
+            u.last_name
+          ) AS applicant_name,
 
-      JOIN document_types dt
-        ON d.document_type_id = dt.id
+          u.email AS user_email
 
-      WHERE LOWER(u.email) = LOWER(?)
+        FROM documents d
 
-      ORDER BY d.created_at DESC
-      `,
-      [email]
-    );
+        JOIN users u
+          ON d.user_id = u.id
 
-    res.json({
-      success: true,
-      documents: rows,
-    });
-  } catch (err) {
-    console.error("GET APPLICANT DOCUMENTS ERROR:", err);
+        JOIN document_types dt
+          ON d.document_type_id = dt.id
 
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve applicant documents.",
-    });
+        WHERE LOWER(u.email) = LOWER(?)
+
+        ORDER BY d.created_at DESC
+        `,
+        [email]
+      );
+
+      return res.json({
+        success: true,
+        documents: rows,
+      });
+    } catch (error) {
+      console.error(
+        "GET APPLICANT DOCUMENTS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          "Failed to retrieve applicant documents.",
+      });
+    }
   }
-});
+);
 
 /* ======================================================
    GET ADMIN QUEUE
 
    GET /api/documents/pending-admin
 ====================================================== */
-router.get("/pending-admin", async (req, res) => {
-  try {
-    const [rows] = await db.query(`
-      SELECT
-        d.id,
-        d.document_uid,
 
-        CONCAT(u.first_name, ' ', u.last_name)
-          AS applicant_name,
+router.get(
+  "/pending-admin",
+  async (req, res) => {
+    try {
+      const [rows] = await db.query(`
+        SELECT
+          d.id,
+          d.document_uid,
+          d.user_id,
 
-        u.email,
+          CONCAT(
+            u.first_name,
+            ' ',
+            u.last_name
+          ) AS applicant_name,
 
-        dt.code,
-        dt.name,
+          u.email,
+          u.email AS user_email,
 
-        d.title,
-        d.cloudinary_url,
-        d.document_hash,
-        d.version,
-        d.status,
-        d.remarks,
-        d.created_at,
-        d.updated_at
+          d.document_type_id,
+          dt.code,
+          dt.name,
+          dt.name AS document_type,
 
-      FROM documents d
+          d.title,
+          d.cloudinary_url,
+          d.cloudinary_public_id,
+          d.cloudinary_asset_id,
+          d.cloudinary_resource_type,
+          d.cloudinary_folder,
 
-      JOIN users u
-        ON d.user_id = u.id
+          d.document_hash,
+          d.approved_hash,
+          d.approved_by,
+          d.approved_at,
+          d.is_locked,
 
-      JOIN document_types dt
-        ON d.document_type_id = dt.id
+          d.version,
+          d.status,
+          d.remarks,
+          d.created_at,
+          d.updated_at
 
-      WHERE d.status = 'pending_admin'
+        FROM documents d
 
-      ORDER BY d.created_at DESC
-    `);
+        JOIN users u
+          ON d.user_id = u.id
 
-    res.json({
-      success: true,
-      documents: rows,
-    });
-  } catch (err) {
-    console.error("GET ADMIN QUEUE ERROR:", err);
+        JOIN document_types dt
+          ON d.document_type_id = dt.id
 
-    res.status(500).json({
-      success: false,
-      message: "Failed to load admin queue.",
-    });
+        WHERE d.status = 'pending_admin'
+
+        ORDER BY d.created_at DESC
+      `);
+
+      return res.json({
+        success: true,
+        documents: rows,
+      });
+    } catch (error) {
+      console.error(
+        "GET ADMIN QUEUE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          "Failed to load admin queue.",
+      });
+    }
   }
-});
+);
 
 /* ======================================================
    GET ONE DOCUMENT'S FULL INFORMATION
 
    GET /api/documents/uid/:document_uid
 ====================================================== */
-router.get("/uid/:document_uid", async (req, res) => {
-  const { document_uid } = req.params;
 
-  try {
-    const [rows] = await db.query(
-      `
-      SELECT
-        d.id,
-        d.document_uid,
-        d.user_id,
-        d.document_type_id,
+router.get(
+  "/uid/:document_uid",
+  async (req, res) => {
+    const { document_uid } = req.params;
 
-        d.title,
-        d.cloudinary_url,
-        d.document_hash,
-        d.version,
-        d.status,
-        d.remarks,
+    try {
+      const [rows] = await db.query(
+        `
+        SELECT
+          d.id,
+          d.document_uid,
+          d.user_id,
+          d.document_type_id,
 
-        d.remarks AS revision_remarks,
+          d.title,
+          d.cloudinary_url,
+          d.cloudinary_public_id,
+          d.cloudinary_asset_id,
+          d.cloudinary_resource_type,
+          d.cloudinary_folder,
 
-        d.created_at,
-        d.updated_at,
+          d.document_hash,
+          d.approved_hash,
+          d.approved_by,
+          d.approved_at,
+          d.is_locked,
 
-        dt.code,
-        dt.name AS document_type,
-        dt.name AS main_application_type,
+          d.version,
+          d.status,
+          d.remarks,
+          d.remarks AS revision_remarks,
 
-        CONCAT(u.first_name, ' ', u.last_name)
-          AS applicant_name,
+          d.created_at,
+          d.updated_at,
 
-        u.email AS user_email
+          dt.code,
+          dt.name AS document_type,
+          dt.name AS main_application_type,
 
-      FROM documents d
+          CONCAT(
+            u.first_name,
+            ' ',
+            u.last_name
+          ) AS applicant_name,
 
-      JOIN users u
-        ON d.user_id = u.id
+          u.email AS user_email
 
-      JOIN document_types dt
-        ON d.document_type_id = dt.id
+        FROM documents d
 
-      WHERE d.document_uid = ?
+        JOIN users u
+          ON d.user_id = u.id
 
-      LIMIT 1
-      `,
-      [document_uid]
-    );
+        JOIN document_types dt
+          ON d.document_type_id = dt.id
 
-    if (rows.length === 0) {
-      return res.status(404).json({
+        WHERE d.document_uid = ?
+
+        LIMIT 1
+        `,
+        [document_uid]
+      );
+
+      if (rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Document not found.",
+        });
+      }
+
+      return res.json({
+        success: true,
+        document: rows[0],
+      });
+    } catch (error) {
+      console.error(
+        "GET DOCUMENT BY UID ERROR:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
-        message: "Document not found.",
+        message:
+          error.sqlMessage ||
+          "Failed to retrieve document.",
       });
     }
-
-    res.json({
-      success: true,
-      document: rows[0],
-    });
-  } catch (err) {
-    console.error("GET DOCUMENT BY UID ERROR:", err);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve document.",
-    });
   }
-});
+);
 
 /* ======================================================
    GET DOCUMENT HISTORY
 
    GET /api/documents/history/:document_uid
 ====================================================== */
-router.get("/history/:document_uid", async (req, res) => {
-  const { document_uid } = req.params;
 
-  try {
-    const [documentRows] = await db.query(
-      `
-      SELECT
-        id,
-        document_uid,
-        status,
-        remarks,
-        created_at,
-        updated_at
-      FROM documents
-      WHERE document_uid = ?
-      LIMIT 1
-      `,
-      [document_uid]
-    );
+router.get(
+  "/history/:document_uid",
+  async (req, res) => {
+    const { document_uid } = req.params;
 
-    if (documentRows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Document not found.",
-      });
-    }
+    try {
+      const [documentRows] = await db.query(
+        `
+        SELECT
+          document_uid,
+          status,
+          remarks,
+          created_at,
+          updated_at
 
-    const document = documentRows[0];
+        FROM documents
 
-    /*
-      This query only assumes that document_history contains document_id.
-      It returns every available history column.
-    */
-    const [historyRows] = await db.query(
-      `
-      SELECT dh.*
-      FROM document_history dh
-      WHERE dh.document_id = ?
-      ORDER BY dh.id DESC
-      `,
-      [document.id]
-    );
+        WHERE document_uid = ?
 
-    /*
-      If no history entry exists yet, return the document's current state
-      so that the Flutter history section is not completely empty.
-    */
-    if (historyRows.length === 0) {
+        LIMIT 1
+        `,
+        [document_uid]
+      );
+
+      if (documentRows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Document not found.",
+        });
+      }
+
+      const document = documentRows[0];
+
+      const [historyRows] = await db.query(
+        `
+        SELECT
+          dh.*
+
+        FROM document_history dh
+
+        WHERE dh.document_uid = ?
+
+        ORDER BY dh.created_at DESC
+        `,
+        [document_uid]
+      );
+
+      if (historyRows.length === 0) {
+        return res.json({
+          success: true,
+          history: [
+            {
+              document_uid:
+                document.document_uid,
+              status: document.status,
+              remarks: document.remarks,
+              created_at:
+                document.updated_at ||
+                document.created_at,
+            },
+          ],
+        });
+      }
+
       return res.json({
         success: true,
-        history: [
-          {
-            status: document.status,
-            remarks: document.remarks,
-            created_at:
-              document.updated_at || document.created_at,
-          },
-        ],
+        history: historyRows,
+      });
+    } catch (error) {
+      console.error(
+        "GET DOCUMENT HISTORY ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          "Failed to retrieve document history.",
       });
     }
-
-    res.json({
-      success: true,
-      history: historyRows,
-    });
-  } catch (err) {
-    console.error("GET DOCUMENT HISTORY ERROR:", err);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve document history.",
-    });
   }
-});
+);
 
 /* ======================================================
    STAFF REVIEW
 
    PUT /api/documents/review/:document_uid
 ====================================================== */
-router.put("/review/:document_uid", async (req, res) => {
-  const { document_uid } = req.params;
-  const { status, remarks } = req.body;
 
-  const normalizedStatus = normalizeStatus(status);
+router.put(
+  "/review/:document_uid",
+  async (req, res) => {
+    const { document_uid } = req.params;
 
-  const allowedStatuses = [
-    "submitted",
-    "pending",
-    "pending_staff",
-    "needs_revision",
-    "verified",
-    "pending_admin",
-    "approved",
-    "rejected",
-  ];
+    const {
+      status,
+      remarks,
+      changed_by,
+    } = req.body;
 
-  if (!normalizedStatus) {
-    return res.status(400).json({
-      success: false,
-      message: "Status is required.",
-    });
-  }
+    const normalizedStatus =
+      normalizeStatus(status);
 
-  if (!allowedStatuses.includes(normalizedStatus)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid status: ${normalizedStatus}`,
-    });
-  }
+    const allowedStatuses = [
+      "needs_revision",
+      "verified",
+      "pending_admin",
+    ];
 
-  const connection = await db.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
-    const [documentRows] = await connection.query(
-      `
-      SELECT
-        d.id,
-        d.document_uid,
-        d.user_id,
-        d.title,
-        d.status AS previous_status,
-        dt.name AS document_type
-
-      FROM documents d
-
-      LEFT JOIN document_types dt
-        ON d.document_type_id = dt.id
-
-      WHERE d.document_uid = ?
-
-      LIMIT 1
-
-      FOR UPDATE
-      `,
-      [document_uid]
-    );
-
-    if (documentRows.length === 0) {
-      await connection.rollback();
-
-      return res.status(404).json({
+    if (!normalizedStatus) {
+      return res.status(400).json({
         success: false,
-        message: "Document not found.",
+        message: "Status is required.",
       });
     }
 
-    const document = documentRows[0];
-
-    /*
-      If the staff frontend sends "verified", convert it to pending_admin
-      because the document should move to the admin queue afterward.
-    */
-    const finalStatus =
-      normalizedStatus === "verified"
-        ? "pending_admin"
-        : normalizedStatus;
-
-    await connection.query(
-      `
-      UPDATE documents
-      SET
-        status = ?,
-        remarks = ?,
-        updated_at = NOW()
-      WHERE document_uid = ?
-      `,
-      [
-        finalStatus,
-        remarks?.trim() || null,
-        document_uid,
-      ]
-    );
-
-    /*
-      Create an applicant notification.
-    */
-    const notification = getNotificationContent(
-      finalStatus,
-      document.document_type || document.title,
-      remarks?.trim()
-    );
-
-    await connection.query(
-      `
-      INSERT INTO notifications (
-        user_id,
-        document_id,
-        document_uid,
-        title,
-        message,
-        notification_type,
-        is_read
+    if (
+      !allowedStatuses.includes(
+        normalizedStatus
       )
-      VALUES (?, ?, ?, ?, ?, ?, 0)
-      `,
-      [
-        document.user_id,
-        document.id,
-        document.document_uid,
-        notification.notificationTitle,
-        notification.message,
-        notification.notificationType,
-      ]
-    );
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Staff may only verify a document or request revision.",
+      });
+    }
 
-    await connection.commit();
+    const normalizedRemarks =
+      String(remarks || "").trim();
 
-    res.json({
-      success: true,
-      message: "Document updated successfully.",
-      document_uid,
-      previous_status: document.previous_status,
-      status: finalStatus,
-    });
-  } catch (err) {
-    await connection.rollback();
+    if (
+      normalizedStatus ===
+        "needs_revision" &&
+      !normalizedRemarks
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Remarks are required when requesting a revision.",
+      });
+    }
 
-    console.error("REVIEW ERROR:", err);
+    const connection =
+      await db.getConnection();
 
-    res.status(500).json({
-      success: false,
-      message: "Failed to update document.",
-    });
-  } finally {
-    connection.release();
+    let cloudinaryMoved = false;
+
+    let previousFolder = null;
+
+    let cloudinaryPublicId = null;
+
+    let cloudinaryResourceType =
+      "image";
+
+    try {
+      await connection.beginTransaction();
+
+      const [documentRows] =
+        await connection.query(
+          `
+          SELECT
+            d.id,
+            d.document_uid,
+            d.user_id,
+            d.title,
+
+            d.status AS previous_status,
+            d.is_locked,
+
+            d.cloudinary_url,
+            d.cloudinary_public_id,
+            d.cloudinary_asset_id,
+            d.cloudinary_resource_type,
+            d.cloudinary_folder,
+
+            dt.name AS document_type
+
+          FROM documents d
+
+          LEFT JOIN document_types dt
+            ON d.document_type_id = dt.id
+
+          WHERE d.document_uid = ?
+
+          LIMIT 1
+
+          FOR UPDATE
+          `,
+          [document_uid]
+        );
+
+      if (documentRows.length === 0) {
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message: "Document not found.",
+        });
+      }
+
+      const document =
+        documentRows[0];
+
+      if (
+        Number(document.is_locked) === 1
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+          message:
+            "This document is locked and can no longer be reviewed.",
+        });
+      }
+
+      const reviewableStatuses = [
+        "pending_staff",
+        "needs_revision",
+        "resubmitted",
+      ];
+
+      if (
+        !reviewableStatuses.includes(
+          document.previous_status
+        )
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+          message:
+            `Document cannot be reviewed from status '${document.previous_status}'.`,
+        });
+      }
+
+      const finalStatus =
+        normalizedStatus === "verified"
+          ? "pending_admin"
+          : normalizedStatus;
+
+      let updatedCloudinaryFolder =
+        document.cloudinary_folder ||
+        "audisure/applicant-submissions";
+
+      let updatedCloudinaryUrl =
+        document.cloudinary_url;
+
+      let updatedCloudinaryAssetId =
+        document.cloudinary_asset_id;
+
+      cloudinaryPublicId =
+        document.cloudinary_public_id;
+
+      cloudinaryResourceType =
+        document.cloudinary_resource_type ||
+        "image";
+
+      previousFolder =
+        updatedCloudinaryFolder;
+
+      /*
+       * Only verified documents move to
+       * audisure/staff-verified.
+       *
+       * Needs-revision documents remain in
+       * audisure/applicant-submissions.
+       */
+      if (
+        finalStatus === "pending_admin"
+      ) {
+        const destinationFolder =
+          "audisure/staff-verified";
+
+        const movedAsset =
+          await moveCloudinaryAsset({
+            publicId:
+              cloudinaryPublicId,
+            resourceType:
+              cloudinaryResourceType,
+            destinationFolder,
+          });
+
+        cloudinaryMoved = true;
+
+        updatedCloudinaryFolder =
+          movedAsset.assetFolder;
+
+        updatedCloudinaryUrl =
+          movedAsset.secureUrl ||
+          updatedCloudinaryUrl;
+
+        updatedCloudinaryAssetId =
+          movedAsset.assetId ||
+          updatedCloudinaryAssetId;
+
+        cloudinaryPublicId =
+          movedAsset.publicId;
+
+        cloudinaryResourceType =
+          movedAsset.resourceType;
+      }
+
+      await connection.query(
+        `
+        UPDATE documents
+
+        SET
+          status = ?,
+          remarks = ?,
+
+          cloudinary_url = ?,
+          cloudinary_public_id = ?,
+          cloudinary_asset_id = ?,
+          cloudinary_resource_type = ?,
+          cloudinary_folder = ?,
+
+          updated_at = NOW()
+
+        WHERE document_uid = ?
+        `,
+        [
+          finalStatus,
+          normalizedRemarks || null,
+
+          updatedCloudinaryUrl,
+          cloudinaryPublicId,
+          updatedCloudinaryAssetId,
+          cloudinaryResourceType,
+          updatedCloudinaryFolder,
+
+          document_uid,
+        ]
+      );
+
+      await connection.query(
+        `
+        INSERT INTO document_history (
+          document_uid,
+          status,
+          remarks,
+          changed_by,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, NOW())
+        `,
+        [
+          document_uid,
+          finalStatus,
+          normalizedRemarks || null,
+          changed_by ||
+            document.user_id,
+        ]
+      );
+
+      const notification =
+        getNotificationContent(
+          finalStatus,
+          document.document_type ||
+            document.title,
+          normalizedRemarks
+        );
+
+      await connection.query(
+        `
+        INSERT INTO notifications (
+          user_id,
+          document_id,
+          document_uid,
+          title,
+          message,
+          notification_type,
+          is_read
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 0)
+        `,
+        [
+          document.user_id,
+          document.id,
+          document.document_uid,
+          notification.notificationTitle,
+          notification.message,
+          notification.notificationType,
+        ]
+      );
+
+      await connection.commit();
+
+      return res.json({
+        success: true,
+        message:
+          finalStatus === "pending_admin"
+            ? "Document verified and forwarded to admin."
+            : "Revision requested successfully.",
+
+        document_uid,
+
+        previous_status:
+          document.previous_status,
+
+        status: finalStatus,
+
+        cloudinary_folder:
+          updatedCloudinaryFolder,
+
+        cloudinary_url:
+          updatedCloudinaryUrl,
+      });
+    } catch (error) {
+      await connection.rollback();
+
+      /*
+       * If Cloudinary moved successfully but the
+       * database operation failed, attempt to return
+       * the asset to its previous folder.
+       */
+      if (
+        cloudinaryMoved &&
+        cloudinaryPublicId &&
+        previousFolder
+      ) {
+        try {
+          await moveCloudinaryAsset({
+            publicId:
+              cloudinaryPublicId,
+            resourceType:
+              cloudinaryResourceType,
+            destinationFolder:
+              previousFolder,
+          });
+        } catch (
+          compensationError
+        ) {
+          console.error(
+            "CLOUDINARY MOVE ROLLBACK ERROR:",
+            compensationError
+          );
+        }
+      }
+
+      console.error(
+        "REVIEW ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to update document.",
+      });
+    } finally {
+      connection.release();
+    }
   }
-});
+);
 
 /* ======================================================
    GET DOCUMENT FILES
@@ -551,42 +911,52 @@ router.put("/review/:document_uid", async (req, res) => {
 
    This generic route must remain last.
 ====================================================== */
-router.get("/:document_uid", async (req, res) => {
-  const { document_uid } = req.params;
 
-  try {
-    const [rows] = await db.query(
-      `
-      SELECT
-        df.id,
-        df.file_name,
-        df.cloudinary_url,
-        df.created_at
+router.get(
+  "/:document_uid",
+  async (req, res) => {
+    const { document_uid } =
+      req.params;
 
-      FROM document_files df
+    try {
+      const [rows] = await db.query(
+        `
+        SELECT
+          df.id,
+          df.file_name,
+          df.cloudinary_url,
+          df.created_at
 
-      JOIN documents d
-        ON df.document_id = d.id
+        FROM document_files df
 
-      WHERE d.document_uid = ?
+        JOIN documents d
+          ON df.document_id = d.id
 
-      ORDER BY df.created_at ASC
-      `,
-      [document_uid]
-    );
+        WHERE d.document_uid = ?
 
-    res.json({
-      success: true,
-      files: rows,
-    });
-  } catch (err) {
-    console.error("GET DOCUMENT FILES ERROR:", err);
+        ORDER BY df.created_at ASC
+        `,
+        [document_uid]
+      );
 
-    res.status(500).json({
-      success: false,
-      message: "Unable to load files.",
-    });
+      return res.json({
+        success: true,
+        files: rows,
+      });
+    } catch (error) {
+      console.error(
+        "GET DOCUMENT FILES ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          "Unable to load files.",
+      });
+    }
   }
-});
+);
 
 export default router;
