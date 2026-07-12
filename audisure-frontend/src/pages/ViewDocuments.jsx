@@ -7,16 +7,61 @@ import {
 import "../styles/dashboard.css";
 import "../styles/documents.css";
 
-export default function Documents() {
-  const BASE_URL =
-    "https://audisure-document-verification-system.onrender.com/api";
+const BASE_URL =
+  "https://audisure-document-verification-system.onrender.com/api";
 
-  const adminId = Number.parseInt(
+function getLoggedInAdminId() {
+  const directId =
     localStorage.getItem("adminId") ||
-      localStorage.getItem("user_id") ||
-      "0",
-    10
-  );
+    localStorage.getItem("user_id") ||
+    localStorage.getItem("userId");
+
+  if (directId) {
+    const parsedDirectId = Number.parseInt(directId, 10);
+
+    if (Number.isInteger(parsedDirectId) && parsedDirectId > 0) {
+      return parsedDirectId;
+    }
+  }
+
+  const possibleUserKeys = [
+    "user",
+    "currentUser",
+    "userData",
+    "loggedInUser",
+  ];
+
+  for (const key of possibleUserKeys) {
+    const storedUser = localStorage.getItem(key);
+
+    if (!storedUser) continue;
+
+    try {
+      const parsedUser = JSON.parse(storedUser);
+      const parsedUserId = Number.parseInt(
+        parsedUser?.id ||
+          parsedUser?.user_id ||
+          parsedUser?.userId ||
+          "0",
+        10
+      );
+
+      if (Number.isInteger(parsedUserId) && parsedUserId > 0) {
+        return parsedUserId;
+      }
+    } catch (storageError) {
+      console.warn(
+        `Unable to parse localStorage item '${key}'.`,
+        storageError
+      );
+    }
+  }
+
+  return 0;
+}
+
+export default function Documents() {
+  const adminId = getLoggedInAdminId();
 
   const [documents, setDocuments] =
     useState([]);
@@ -49,7 +94,9 @@ export default function Documents() {
           }
         );
 
-        const data = await response.json();
+        const data = await response
+          .json()
+          .catch(() => ({}));
 
         if (
           !response.ok ||
@@ -190,7 +237,9 @@ export default function Documents() {
         }
       );
 
-      const data = await response.json();
+      const data = await response
+        .json()
+        .catch(() => ({}));
 
       if (
         !response.ok ||
