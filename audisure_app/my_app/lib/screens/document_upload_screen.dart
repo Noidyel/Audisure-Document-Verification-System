@@ -108,13 +108,17 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
   Future<void> _loadUserFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-
+    final savedFirstName =
+        prefs.getString('first_name') ?? prefs.getString('firstName') ?? '';
+    final savedLastName =
+        prefs.getString('last_name') ?? prefs.getString('lastName') ?? '';
+    final savedEmail =
+        prefs.getString('email') ?? prefs.getString('user_email') ?? '';
     if (!mounted) return;
-
     setState(() {
-      firstName = prefs.getString('first_name') ?? '';
-      lastName = prefs.getString('last_name') ?? '';
-      userEmail = prefs.getString('user_email') ?? '';
+      firstName = savedFirstName.trim();
+      lastName = savedLastName.trim();
+      userEmail = savedEmail.trim();
     });
   }
 
@@ -482,13 +486,30 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       final fileTitle = _buildFileTitle(code);
       final filename = '$fileTitle.pdf';
 
-      // Upload the single consolidated PDF to Cloudinary.
+      // ======================================================
+      // UPLOAD CONSOLIDATED PDF TO CLOUDINARY
+      // ======================================================
+      //
+      // Configure the unsigned preset "audisure_unsigned" in Cloudinary
+      // to use this asset folder:
+      //
+      // audisure/applicant-submissions
+
+      const expectedCloudinaryFolder = 'audisure/applicant-submissions';
+
       final cloudRequest = http.MultipartRequest(
         'POST',
         Uri.parse(cloudinaryUploadUrl),
       );
 
       cloudRequest.fields['upload_preset'] = cloudinaryUploadPreset;
+
+      // Keep a readable Cloudinary public ID.
+      cloudRequest.fields['public_id'] = fileTitle;
+
+      // This works with Cloudinary dynamic-folder environments.
+      // The upload preset should still enforce the same folder.
+      cloudRequest.fields['asset_folder'] = expectedCloudinaryFolder;
 
       cloudRequest.files.add(
         http.MultipartFile.fromBytes('file', pdfBytes, filename: filename),
@@ -497,31 +518,71 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       final cloudResponse = await cloudRequest.send();
       final cloudResponseBody = await cloudResponse.stream.bytesToString();
 
+      debugPrint('Cloudinary status: ${cloudResponse.statusCode}');
+      debugPrint('Cloudinary response: $cloudResponseBody');
+
       if (cloudResponse.statusCode != 200 && cloudResponse.statusCode != 201) {
         throw Exception(
-          'Cloudinary upload failed (${cloudResponse.statusCode}): '
+          'Cloudinary upload failed '
+          '(${cloudResponse.statusCode}): '
           '$cloudResponseBody',
         );
       }
 
-      final cloudData = jsonDecode(cloudResponseBody);
+      final decodedCloudResponse = jsonDecode(cloudResponseBody);
 
-      if (cloudData is! Map<String, dynamic>) {
+      if (decodedCloudResponse is! Map<String, dynamic>) {
         throw Exception('Cloudinary returned an invalid response.');
       }
 
-      final secureUrl = cloudData['secure_url'] ?? cloudData['url'];
+      final cloudData = decodedCloudResponse;
 
-      if (secureUrl == null || secureUrl.toString().isEmpty) {
-        throw Exception('Cloudinary did not return a file URL.');
+      final secureUrl =
+          (cloudData['secure_url'] ?? cloudData['url'] ?? '').toString();
+
+      final publicId = (cloudData['public_id'] ?? '').toString();
+
+      final assetId = (cloudData['asset_id'] ?? '').toString();
+
+      final resourceType = (cloudData['resource_type'] ?? 'image').toString();
+
+      final returnedAssetFolder =
+          (cloudData['asset_folder'] ??
+                  cloudData['folder'] ??
+                  expectedCloudinaryFolder)
+              .toString();
+
+      if (secureUrl.isEmpty) {
+        throw Exception('Cloudinary did not return a secure file URL.');
       }
 
+      if (publicId.isEmpty) {
+        throw Exception('Cloudinary did not return a public ID.');
+      }
+
+      if (assetId.isEmpty) {
+        debugPrint('Warning: Cloudinary did not return asset_id.');
+      }
+
+      debugPrint('Cloudinary URL: $secureUrl');
+      debugPrint('Cloudinary public ID: $publicId');
+      debugPrint('Cloudinary asset ID: $assetId');
+      debugPrint('Cloudinary resource type: $resourceType');
+      debugPrint('Cloudinary folder: $returnedAssetFolder');
+
       // Save the consolidated PDF metadata in the V2 documents table.
-      final requestBody = {
+      final requestBody = <String, dynamic>{
         'user_email': userEmail,
         'document_type_id': selected.id,
         'title': fileTitle,
-        'cloudinary_url': secureUrl.toString(),
+        'cloudinary_url': secureUrl,
+        'cloudinary_public_id': publicId,
+        'cloudinary_asset_id': assetId.isEmpty ? null : assetId,
+        'cloudinary_resource_type': resourceType,
+        'cloudinary_folder':
+            returnedAssetFolder.isEmpty
+                ? expectedCloudinaryFolder
+                : returnedAssetFolder,
       };
 
       debugPrint('Backend URL: $backendUploadUrl');
