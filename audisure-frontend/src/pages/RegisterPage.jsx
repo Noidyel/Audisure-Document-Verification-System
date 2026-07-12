@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import "../styles/register.css";
+import API_BASE_URL from "../config/apiConfig";
 
 export default function RegisterPage() {
   const [firstName, setFirstName] = useState('');
@@ -16,12 +17,14 @@ export default function RegisterPage() {
     e.preventDefault();
     try {
       const res = await axios.post(
-  `${process.env.REACT_APP_RENDER_API_URL}/api/auth/register`, {
-        firstName,
-        lastName,
-        email,
-        password
-      });
+  `${API_BASE_URL}/api/auth/register`,
+  {
+    firstName,
+    lastName,
+    email,
+    password
+  }
+);
       if (res.data.success) {
         navigate('/login');
       } else {

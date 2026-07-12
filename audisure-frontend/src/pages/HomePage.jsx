@@ -16,6 +16,7 @@ import "../styles/HomePage.css";
 import "../styles/LoginModal.css";
 import HCDRDLogo from "../assets/HCDRD_logo.png";
 import QRCodeImage from "../assets/QR_Code.png";
+import API_BASE_URL from "../config/apiConfig";
 
 export default function HomePage() {
   const [showLogin, setShowLogin] = useState(false);
@@ -36,7 +37,7 @@ export default function HomePage() {
 
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_RENDER_API_URL}/api/auth/login`,
+        `${API_BASE_URL}/api/auth/login`,
         {
           email,
           password,
