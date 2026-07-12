@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/api_config.dart';
+import "dart:async";
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -26,7 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     final firstName = firstNameController.text.trim();
     final lastName = lastNameController.text.trim();
-    final email = emailController.text.trim();
+    final email = emailController.text.trim().toLowerCase();
     final password = passwordController.text.trim();
     final confirmPassword = confirmPasswordController.text.trim();
 
@@ -37,87 +38,120 @@ class _RegisterScreenState extends State<RegisterScreen> {
       email,
       password,
       confirmPassword,
-    ].any((f) => f.isEmpty)) {
+    ].any((field) => field.isEmpty)) {
       _showMessage(
-        t("Please fill in all fields", "Pakiusap punan ang lahat ng patlang"),
+        t("Please fill in all fields.", "Pakiusap punan ang lahat ng patlang."),
       );
       return;
     }
-    if (!email.contains('@') || !email.contains('.')) {
+
+    if (!email.contains("@") || !email.contains(".")) {
       _showMessage(
-        t("Enter a valid email address", "Maglagay ng wastong email address"),
+        t("Enter a valid email address.", "Maglagay ng wastong email address."),
       );
       return;
     }
+
     if (password.length < 6) {
       _showMessage(
         t(
-          "Password must be at least 6 characters",
-          "Ang password ay dapat hindi bababa sa 6 na karakter",
+          "Password must be at least 6 characters.",
+          "Ang password ay dapat hindi bababa sa 6 na karakter.",
         ),
       );
       return;
     }
+
     if (password != confirmPassword) {
-      _showMessage(t("Passwords do not match", "Hindi tugma ang mga password"));
+      _showMessage(
+        t("Passwords do not match.", "Hindi tugma ang mga password."),
+      );
       return;
     }
 
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+    });
 
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/api/auth/register');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'first_name': firstName,
-          'last_name': lastName,
-          'email': email,
-          'password': password,
-          'role': 'applicant', // explicitly set applicant
-        }),
-      );
+      final url = Uri.parse("${ApiConfig.baseUrl}/api/auth/register");
 
-      setState(() => isLoading = false);
+      final response = await http
+          .post(
+            url,
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              // These names must match auth.js
+              "firstName": firstName,
+              "lastName": lastName,
+              "email": email,
+              "password": password,
+              "role": "applicant",
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      debugPrint("Register URL: $url");
+      debugPrint("Register status: ${response.statusCode}");
+      debugPrint("Register response: ${response.body}");
 
-        if (data['success'] == true) {
-          // <-- check success
-          _showMessage(
-            t(
-              "Registration successful! Redirecting to login...",
-              "Matagumpay ang pagpaparehistro! Inaayos ang paglipat...",
-            ),
-          );
+      Map<String, dynamic> data = {};
 
-          Future.delayed(const Duration(seconds: 1), () {
-            Navigator.pushReplacementNamed(context, '/login');
-          });
-        } else {
-          _showMessage(
-            data['message'] ??
-                t("Registration failed", "Nabigo ang pagpaparehistro"),
-          );
-        }
-      } else {
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (error) {
         _showMessage(
           t(
-            "Server error. Please try again later.",
-            "May problema sa server. Pakisubukan muli mamaya.",
+            "The server returned an invalid response.",
+            "Hindi wastong sagot ang ibinalik ng server.",
           ),
         );
+        return;
       }
-    } catch (e) {
-      setState(() => isLoading = false);
+
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          data["success"] == true) {
+        _showMessage(
+          t(
+            "Registration successful! Please wait for account approval.",
+            "Matagumpay ang pagpaparehistro! Hintayin ang pag-apruba ng account.",
+          ),
+        );
+
+        await Future.delayed(const Duration(seconds: 1));
+
+        if (!mounted) return;
+
+        Navigator.pushReplacementNamed(context, "/login");
+      } else {
+        _showMessage(
+          data["message"]?.toString() ??
+              t("Registration failed.", "Nabigo ang pagpaparehistro."),
+        );
+      }
+    } on TimeoutException {
+      _showMessage(
+        t(
+          "The server took too long to respond. Please try again.",
+          "Masyadong matagal ang tugon ng server. Pakisubukan muli.",
+        ),
+      );
+    } catch (error) {
+      debugPrint("Registration error: $error");
+
       _showMessage(
         t(
           "Network error. Please check your connection.",
           "Walang koneksyon. Pakisuri ang iyong internet.",
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 

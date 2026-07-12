@@ -1,141 +1,147 @@
-// routes/upload.js
-
 import express from "express";
 import db from "../db.js";
 
 const router = express.Router();
 
-// Create a new document submission
 router.post("/", async (req, res) => {
   const {
     user_email,
     document_type_id,
     title,
-    files // [{ requirement_id, cloudinary_url, file_name }]
+    cloudinary_url,
   } = req.body;
 
-  if (!user_email || !document_type_id || !files || files.length === 0) {
+  if (
+    !user_email ||
+    !document_type_id ||
+    !title ||
+    !cloudinary_url
+  ) {
     return res.status(400).json({
       success: false,
-      message: "Missing required fields."
+      message:
+        "Missing user_email, document_type_id, title, or cloudinary_url.",
     });
   }
 
-  const connection = await db.getConnection();
-
   try {
-    await connection.beginTransaction();
-
-    // Get applicant ID
-    const [userRows] = await connection.execute(
-      "SELECT id FROM users WHERE email = ? LIMIT 1",
-      [user_email]
+    const [userRows] = await db.execute(
+      `
+      SELECT id
+      FROM users
+      WHERE LOWER(email) = LOWER(?)
+      LIMIT 1
+      `,
+      [user_email.trim()]
     );
 
     if (userRows.length === 0) {
-      await connection.rollback();
       return res.status(404).json({
         success: false,
-        message: "Applicant not found."
+        message: "Applicant account not found.",
       });
     }
 
     const userId = userRows[0].id;
 
-    // Generate UID
-    const documentUid =
-      "DOC" +
-      Date.now() +
-      Math.floor(Math.random() * 1000);
-
-    // Create document
-    await connection.execute(
+    const [typeRows] = await db.execute(
       `
-      INSERT INTO documents
-      (
+      SELECT id, code
+      FROM document_types
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [document_type_id]
+    );
+
+    if (typeRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Document type not found.",
+      });
+    }
+
+    const typeCode = typeRows[0].code || "DOC";
+
+    const randomPart = Math.random()
+      .toString(36)
+      .substring(2, 8)
+      .toUpperCase();
+
+    const documentUid =
+      `${typeCode}-${Date.now()}-${randomPart}`;
+
+    const [result] = await db.execute(
+      `
+      INSERT INTO documents (
         document_uid,
         user_id,
         document_type_id,
         title,
-        status
+        cloudinary_url,
+        document_hash,
+        version,
+        status,
+        remarks,
+        created_at,
+        updated_at
       )
-      VALUES (?, ?, ?, ?, 'pending_staff')
+      VALUES (
+        ?, ?, ?, ?, ?,
+        NULL,
+        1,
+        'pending_staff',
+        NULL,
+        NOW(),
+        NOW()
+      )
       `,
       [
         documentUid,
         userId,
         document_type_id,
-        title
+        title,
+        cloudinary_url,
       ]
     );
 
-    // Get inserted document ID
-    const [docRows] = await connection.execute(
-      "SELECT id FROM documents WHERE document_uid=?",
-      [documentUid]
-    );
-
-    const documentId = docRows[0].id;
-
-    // Save uploaded files
-    for (const file of files) {
-      await connection.execute(
-        `
-        INSERT INTO document_files
-        (
-          document_id,
-          requirement_id,
-          file_name,
-          cloudinary_url
-        )
-        VALUES (?, ?, ?, ?)
-        `,
-        [
-          documentId,
-          file.requirement_id,
-          file.file_name,
-          file.cloudinary_url
-        ]
-      );
-    }
-
-    // Initial history
-    await connection.execute(
+    await db.execute(
       `
-      INSERT INTO document_history
-      (
+      INSERT INTO document_history (
         document_uid,
         status,
-        changed_by
+        remarks,
+        changed_by,
+        created_at
       )
-      VALUES
-      (?, 'pending_staff', ?)
+      VALUES (
+        ?,
+        'pending_staff',
+        NULL,
+        ?,
+        NOW()
+      )
       `,
-      [
-        documentUid,
-        userId
-      ]
+      [documentUid, userId]
     );
 
-    await connection.commit();
-
-    res.json({
+    return res.status(201).json({
       success: true,
+      message: "Application submitted successfully.",
+      document_id: result.insertId,
       document_uid: documentUid,
-      message: "Submission created successfully."
+      cloudinary_url,
     });
+  } catch (error) {
+    console.error("Upload route error:", error);
 
-  } catch (err) {
-    await connection.rollback();
-    console.error(err);
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to create submission."
+      message:
+        error.sqlMessage ||
+        error.message ||
+        "Failed to save application.",
     });
-
-  } finally {
-    connection.release();
   }
 });
 

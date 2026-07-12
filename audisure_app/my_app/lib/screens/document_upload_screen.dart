@@ -1,13 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:image_picker/image_picker.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:pdf/pdf.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:signature/signature.dart';
+
 import '../config/api_config.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
@@ -19,11 +21,14 @@ class DocumentUploadScreen extends StatefulWidget {
 
 class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   static const String cloudinaryUploadUrl =
-      "https://api.cloudinary.com/v1_1/dx78jwu6q/image/upload";
-  static const String cloudinaryUploadPreset = "audisure_unsigned";
-  static const String backendUploadUrl = "${ApiConfig.baseUrl}/api/upload";
+      'https://api.cloudinary.com/v1_1/dx78jwu6q/image/upload';
+
+  static const String cloudinaryUploadPreset = 'audisure_unsigned';
+
+  static const String backendUploadUrl = '${ApiConfig.baseUrl}/api/upload';
 
   final ImagePicker _picker = ImagePicker();
+
   bool isLoading = false;
   bool isEnglish = true;
 
@@ -31,38 +36,54 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   String lastName = '';
   String userEmail = '';
 
-  final List<_DocType> docTypes = [
+  /*
+   * These IDs must match your document_types table in Aiven.
+   *
+   * Expected values from the SQL seed:
+   * ECC = 1
+   * WCC = 2
+   * SHC = 3
+   *
+   * Run:
+   * SELECT id, code, name FROM document_types;
+   * if you want to verify them.
+   */
+  final List<_DocType> docTypes = const [
     _DocType(
-      title: "Application for Water Connection Clearance",
-      code: "WCC",
+      id: 2,
+      title: 'Application for Water Connection Clearance',
+      code: 'WCC',
       requirements: [
-        "Barangay Clearance",
-        "Valid ID",
-        "Proof of Ownership / Contract",
+        'Barangay Clearance',
+        'Valid ID',
+        'Proof of Ownership / Contract',
       ],
     ),
     _DocType(
-      title: "Application for Electrification Clearance",
-      code: "ECC",
+      id: 1,
+      title: 'Application for Electrification Clearance',
+      code: 'ECC',
       requirements: [
-        "Barangay Clearance",
-        "Valid ID",
-        "Approved Electrical Plan",
+        'Barangay Clearance',
+        'Valid ID',
+        'Approved Electrical Plan',
       ],
     ),
     _DocType(
-      title: "Application for Socialized Housing Unit / Condominium Unit",
-      code: "SHC",
+      id: 3,
+      title: 'Application for Socialized Housing Unit / Condominium Unit',
+      code: 'SHC',
       requirements: [
-        "Birth Certificate",
-        "Certificate of Indigency",
-        "Proof of Income",
-        "Valid ID",
+        'Birth Certificate',
+        'Certificate of Indigency',
+        'Proof of Income',
+        'Valid ID',
       ],
     ),
   ];
 
   _DocType? selectedDocType;
+
   final Map<int, XFile> pickedImages = {};
 
   final SignatureController _sigController = SignatureController(
@@ -79,8 +100,17 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     _loadUserFromPrefs();
   }
 
+  @override
+  void dispose() {
+    _sigController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadUserFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+
+    if (!mounted) return;
+
     setState(() {
       firstName = prefs.getString('first_name') ?? '';
       lastName = prefs.getString('last_name') ?? '';
@@ -88,46 +118,53 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     });
   }
 
-  Future<void> _pickForRequirement(int reqIndex) async {
+  Future<void> _pickForRequirement(int requirementIndex) async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      builder:
-          (context) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.camera_alt),
-                  title: Text(t("Camera", "Camera")),
-                  onTap: () => Navigator.pop(context, ImageSource.camera),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library),
-                  title: Text(t("Gallery", "Gallery")),
-                  onTap: () => Navigator.pop(context, ImageSource.gallery),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.close),
-                  title: Text(t("Cancel", "Kanselahin")),
-                  onTap: () => Navigator.pop(context, null),
-                ),
-              ],
-            ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: Text(t('Camera', 'Camera')),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: Text(t('Gallery', 'Gallery')),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: Text(t('Cancel', 'Kanselahin')),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
           ),
+        );
+      },
     );
 
     if (source == null) return;
-    final XFile? picked = await _picker.pickImage(
-      source: source,
-      imageQuality: 75,
-    );
-    if (picked != null) setState(() => pickedImages[reqIndex] = picked);
+
+    final picked = await _picker.pickImage(source: source, imageQuality: 75);
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      pickedImages[requirementIndex] = picked;
+    });
   }
 
   bool _allRequirementsFilled() {
-    if (selectedDocType == null) return false;
-    return selectedDocType!.requirements.asMap().keys.every(
-      (i) => pickedImages[i] != null,
+    final selected = selectedDocType;
+
+    if (selected == null) return false;
+
+    return selected.requirements.asMap().keys.every(
+      (index) => pickedImages[index] != null,
     );
   }
 
@@ -136,17 +173,19 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     final dd = now.day.toString().padLeft(2, '0');
     final mm = now.month.toString().padLeft(2, '0');
     final yyyy = now.year.toString();
-    return "$dd$mm$yyyy";
+
+    return '$dd$mm$yyyy';
   }
 
   String _buildFileTitle(String code) {
     final date = _formattedDateDDMMYYYY();
-    final initial = firstName.isNotEmpty ? firstName[0].toUpperCase() : "X";
+    final initial = firstName.isNotEmpty ? firstName[0].toUpperCase() : 'X';
     final last =
         lastName.isNotEmpty
             ? lastName.toUpperCase().replaceAll(' ', '')
-            : "UNKNOWN";
-    return "$code$date$initial$last";
+            : 'UNKNOWN';
+
+    return '$code$date$initial$last';
   }
 
   Future<pw.MemoryImage> _loadLogo() async {
@@ -154,13 +193,51 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     return pw.MemoryImage(bytes.buffer.asUint8List());
   }
 
+  String _formattedLongDate(DateTime date) {
+    const months = [
+      '',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return '${months[date.month]} ${date.day}, ${date.year}';
+  }
+
   Future<void> _generatePdfAndUpload() async {
-    if (selectedDocType == null) return;
+    final selected = selectedDocType;
+
+    if (selected == null) {
+      _showMessage(
+        t('Please select an application.', 'Pumili muna ng aplikasyon.'),
+      );
+      return;
+    }
+
+    if (userEmail.isEmpty) {
+      _showMessage(
+        t(
+          'Your account email is missing. Please log in again.',
+          'Nawawala ang email ng account. Mag-login muli.',
+        ),
+      );
+      return;
+    }
+
     if (!_allRequirementsFilled()) {
       _showMessage(
         t(
-          "Please supply all required images.",
-          "Pakisupply ang lahat ng kinakailangang larawan.",
+          'Please supply all required images.',
+          'Pakisupply ang lahat ng kinakailangang larawan.',
         ),
       );
       return;
@@ -169,31 +246,38 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     if (_sigController.isEmpty) {
       _showMessage(
         t(
-          "Please provide your digital signature.",
-          "Pakilagyan ang digital signature.",
+          'Please provide your digital signature.',
+          'Pakilagyan ang digital signature.',
         ),
       );
       return;
     }
 
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       final pdf = pw.Document();
       final logoImage = await _loadLogo();
-      final title = selectedDocType!.title;
-      final code = selectedDocType!.code;
-      final requirementsList = selectedDocType!.requirements;
 
-      final sigBytes = await _sigController.toPngBytes();
-      if (sigBytes == null) throw Exception("Signature export failed");
-      final signatureImage = pw.MemoryImage(sigBytes);
+      final title = selected.title;
+      final code = selected.code;
+      final requirementsList = selected.requirements;
+
+      final signatureBytes = await _sigController.toPngBytes();
+
+      if (signatureBytes == null) {
+        throw Exception('Signature export failed.');
+      }
+
+      final signatureImage = pw.MemoryImage(signatureBytes);
 
       // COVER PAGE
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
-          build: (ctx) {
+          build: (context) {
             return pw.Padding(
               padding: const pw.EdgeInsets.all(24),
               child: pw.Column(
@@ -201,14 +285,18 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                 children: [
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
-                        "AUDISURE - HCDRD Document Submission",
-                        style: pw.TextStyle(
-                          fontSize: 22,
-                          fontWeight: pw.FontWeight.bold,
+                      pw.Expanded(
+                        child: pw.Text(
+                          'AUDISURE - HCDRD Document Submission',
+                          style: pw.TextStyle(
+                            fontSize: 22,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
                         ),
                       ),
+                      pw.SizedBox(width: 12),
                       pw.Image(logoImage, width: 50, height: 50),
                     ],
                   ),
@@ -216,6 +304,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   pw.Center(
                     child: pw.Text(
                       title,
+                      textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(
                         fontSize: 20,
                         fontWeight: pw.FontWeight.bold,
@@ -224,14 +313,21 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   ),
                   pw.SizedBox(height: 16),
                   pw.Text(
-                    "Date: ${_formattedLongDate(DateTime.now())}",
+                    'Date: ${_formattedLongDate(DateTime.now())}',
                     style: pw.TextStyle(
                       fontSize: 12,
                       fontStyle: pw.FontStyle.italic,
                     ),
                   ),
                   pw.Text(
-                    "Applicant: ${firstName.isEmpty && lastName.isEmpty ? userEmail : '$firstName $lastName'}",
+                    'Applicant: ${firstName.isEmpty && lastName.isEmpty ? userEmail : '$firstName $lastName'}',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontStyle: pw.FontStyle.italic,
+                    ),
+                  ),
+                  pw.Text(
+                    'Email: $userEmail',
                     style: pw.TextStyle(
                       fontSize: 12,
                       fontStyle: pw.FontStyle.italic,
@@ -239,28 +335,32 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   ),
                   pw.SizedBox(height: 12),
                   pw.Text(
-                    "Requirements needed:",
+                    'Requirements included:',
                     style: pw.TextStyle(
                       fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
                   pw.SizedBox(height: 8),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: List.generate(requirementsList.length, (i) {
-                      return pw.Row(
+                  ...requirementsList.map(
+                    (requirement) => pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 4),
+                      child: pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text("• ", style: pw.TextStyle(fontSize: 12)),
+                          pw.Text(
+                            '• ',
+                            style: const pw.TextStyle(fontSize: 12),
+                          ),
                           pw.Expanded(
                             child: pw.Text(
-                              requirementsList[i],
-                              style: pw.TextStyle(fontSize: 12),
+                              requirement,
+                              style: const pw.TextStyle(fontSize: 12),
                             ),
                           ),
                         ],
-                      );
-                    }),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -270,16 +370,25 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       );
 
       // REQUIREMENT PAGES
-      for (var i = 0; i < requirementsList.length; i++) {
-        final XFile? xfile = pickedImages[i];
-        if (xfile == null) continue;
-        final bytes = await xfile.readAsBytes();
-        final pwImage = pw.MemoryImage(bytes);
+      //
+      // Use final local variables inside the loop. This prevents the
+      // delayed PDF page callback from reading an index that has already
+      // moved past the end of the requirements list.
+      for (var index = 0; index < requirementsList.length; index++) {
+        final xFile = pickedImages[index];
+
+        if (xFile == null) {
+          throw Exception('Missing image for ${requirementsList[index]}.');
+        }
+
+        final requirementLabel = requirementsList[index];
+        final Uint8List imageBytes = await xFile.readAsBytes();
+        final requirementImage = pw.MemoryImage(imageBytes);
 
         pdf.addPage(
           pw.Page(
             pageFormat: PdfPageFormat.a4,
-            build: (ctx) {
+            build: (context) {
               return pw.Padding(
                 padding: const pw.EdgeInsets.all(24),
                 child: pw.Column(
@@ -287,19 +396,30 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   children: [
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text(
-                          requirementsList[i],
-                          style: pw.TextStyle(
-                            fontSize: 16,
-                            fontWeight: pw.FontWeight.bold,
+                        pw.Expanded(
+                          child: pw.Text(
+                            requirementLabel,
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                           ),
                         ),
+                        pw.SizedBox(width: 12),
                         pw.Image(logoImage, width: 50, height: 50),
                       ],
                     ),
                     pw.SizedBox(height: 12),
-                    pw.Center(child: pw.Image(pwImage, fit: pw.BoxFit.contain)),
+                    pw.Expanded(
+                      child: pw.Center(
+                        child: pw.Image(
+                          requirementImage,
+                          fit: pw.BoxFit.contain,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -312,132 +432,191 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
-          build:
-              (ctx) => pw.Padding(
-                padding: const pw.EdgeInsets.all(24),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      "Digital Signature:",
-                      style: pw.TextStyle(
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
+          build: (context) {
+            return pw.Padding(
+              padding: const pw.EdgeInsets.all(24),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Applicant Certification',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
                     ),
-                    pw.SizedBox(height: 24),
-                    pw.Center(
-                      child: pw.Image(signatureImage, width: 300, height: 150),
+                  ),
+                  pw.SizedBox(height: 16),
+                  pw.Text(
+                    'I certify that the submitted information and document images are true and correct.',
+                    style: const pw.TextStyle(fontSize: 12),
+                  ),
+                  pw.SizedBox(height: 24),
+                  pw.Text(
+                    'Digital Signature:',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
                     ),
-                  ],
-                ),
+                  ),
+                  pw.SizedBox(height: 16),
+                  pw.Center(
+                    child: pw.Image(signatureImage, width: 300, height: 150),
+                  ),
+                  pw.SizedBox(height: 12),
+                  pw.Center(
+                    child: pw.Text(
+                      firstName.isEmpty && lastName.isEmpty
+                          ? userEmail
+                          : '$firstName $lastName',
+                      style: const pw.TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
               ),
+            );
+          },
         ),
       );
 
       final pdfBytes = await pdf.save();
       final fileTitle = _buildFileTitle(code);
-      final filename = "$fileTitle.pdf";
+      final filename = '$fileTitle.pdf';
 
-      // CLOUDINARY
-      final cloudReq = http.MultipartRequest(
+      // Upload the single consolidated PDF to Cloudinary.
+      final cloudRequest = http.MultipartRequest(
         'POST',
         Uri.parse(cloudinaryUploadUrl),
       );
-      cloudReq.fields['upload_preset'] = cloudinaryUploadPreset;
-      cloudReq.files.add(
+
+      cloudRequest.fields['upload_preset'] = cloudinaryUploadPreset;
+
+      cloudRequest.files.add(
         http.MultipartFile.fromBytes('file', pdfBytes, filename: filename),
       );
 
-      final cloudResp = await cloudReq.send();
-      final cloudRespBody = await cloudResp.stream.bytesToString();
-      if (cloudResp.statusCode != 200 && cloudResp.statusCode != 201) {
-        throw Exception("Cloudinary upload failed: $cloudRespBody");
-      }
+      final cloudResponse = await cloudRequest.send();
+      final cloudResponseBody = await cloudResponse.stream.bytesToString();
 
-      final cloudData = jsonDecode(cloudRespBody);
-      final secureUrl = cloudData['secure_url'] ?? cloudData['url'];
-      if (secureUrl == null)
-        throw Exception("Cloudinary did not return secure_url.");
-
-      // BACKEND
-      final body = {
-        "user_email": userEmail,
-        "title": fileTitle,
-        "file_url": secureUrl,
-        "file_type": "pdf",
-        "main_application_type": selectedDocType!.title,
-      };
-
-      final backendResp = await http.post(
-        Uri.parse(backendUploadUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-
-      if (backendResp.statusCode != 200 && backendResp.statusCode != 201) {
+      if (cloudResponse.statusCode != 200 && cloudResponse.statusCode != 201) {
         throw Exception(
-          "Backend upload failed: ${backendResp.statusCode} ${backendResp.body}",
+          'Cloudinary upload failed (${cloudResponse.statusCode}): '
+          '$cloudResponseBody',
         );
       }
 
-      // SUCCESS POPUP DIALOG
+      final cloudData = jsonDecode(cloudResponseBody);
+
+      if (cloudData is! Map<String, dynamic>) {
+        throw Exception('Cloudinary returned an invalid response.');
+      }
+
+      final secureUrl = cloudData['secure_url'] ?? cloudData['url'];
+
+      if (secureUrl == null || secureUrl.toString().isEmpty) {
+        throw Exception('Cloudinary did not return a file URL.');
+      }
+
+      // Save the consolidated PDF metadata in the V2 documents table.
+      final requestBody = {
+        'user_email': userEmail,
+        'document_type_id': selected.id,
+        'title': fileTitle,
+        'cloudinary_url': secureUrl.toString(),
+      };
+
+      debugPrint('Backend URL: $backendUploadUrl');
+      debugPrint('Backend body: ${jsonEncode(requestBody)}');
+
+      final backendResponse = await http
+          .post(
+            Uri.parse(backendUploadUrl),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(requestBody),
+          )
+          .timeout(const Duration(seconds: 45));
+
+      debugPrint('Backend status: ${backendResponse.statusCode}');
+      debugPrint('Backend response: ${backendResponse.body}');
+
+      Map<String, dynamic> backendData = {};
+
+      try {
+        final decoded = jsonDecode(backendResponse.body);
+
+        if (decoded is Map<String, dynamic>) {
+          backendData = decoded;
+        }
+      } catch (_) {
+        // A clearer error is raised below.
+      }
+
+      if (backendResponse.statusCode < 200 ||
+          backendResponse.statusCode >= 300 ||
+          backendData['success'] != true) {
+        throw Exception(
+          backendData['message']?.toString() ??
+              'Backend upload failed '
+                  '(${backendResponse.statusCode}).',
+        );
+      }
+
+      final documentUid =
+          backendData['document_uid']?.toString() ?? 'Unavailable';
+
+      if (!mounted) return;
+
       await showDialog(
         context: context,
-        builder:
-            (_) => AlertDialog(
-              title: Text(
-                t("Upload Successful", "Matagumpay ang Pag-upload"),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: Text(
-                t(
-                  "Upload successful! Once your document has been verified, your Document UID will be provided to track your application's progress. Please be patient!",
-                  "Matagumpay ang pag-upload! Kapag na-verify na ang iyong dokumento, bibigyan ka ng Document UID upang masubaybayan ang progreso ng iyong aplikasyon. Mangyaring maghintay nang may pasensya!",
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(t("I Understand", "Naiintindihan Ko")),
-                ),
-              ],
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(
+              t('Upload Successful', 'Matagumpay ang Pag-upload'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
+            content: Text(
+              t(
+                'Your consolidated PDF was submitted for staff verification.\n\nDocument UID: $documentUid',
+                'Naipasa ang pinagsamang PDF para sa beripikasyon ng staff.\n\nDocument UID: $documentUid',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(t('I Understand', 'Naiintindihan Ko')),
+              ),
+            ],
+          );
+        },
       );
+
+      if (!mounted) return;
 
       setState(() {
         selectedDocType = null;
         pickedImages.clear();
         _sigController.clear();
       });
-    } catch (e, st) {
-      debugPrint("PDF/Upload error: $e\n$st");
-      _showMessage("Error: $e");
+    } catch (error, stackTrace) {
+      debugPrint('PDF/Upload error: $error');
+      debugPrint('$stackTrace');
+
+      if (mounted) {
+        _showMessage(
+          t('Upload failed: $error', 'Nabigo ang pag-upload: $error'),
+        );
+      }
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
-  String _formattedLongDate(DateTime d) {
-    const months = [
-      "",
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
-    return "${months[d.month]} ${d.day}, ${d.year}";
-  }
-
   void _showMessage(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
@@ -445,6 +624,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
   Widget _requirementRow(int index, String label) {
     final picked = pickedImages[index];
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
@@ -452,22 +632,29 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle:
             picked == null
-                ? Text(t("No image selected", "Walang larawang napili"))
+                ? Text(t('No image selected', 'Walang larawang napili'))
                 : Text(picked.name),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              tooltip: t("Replace / Pick", "Palitan / Piliin"),
+              tooltip: t('Replace / Pick', 'Palitan / Piliin'),
               icon: Icon(picked == null ? Icons.camera_alt : Icons.edit),
-              onPressed: () => _pickForRequirement(index),
+              onPressed: isLoading ? null : () => _pickForRequirement(index),
               color: const Color(0xFFD32F2F),
             ),
             if (picked != null)
               IconButton(
-                tooltip: t("Remove", "Tanggalin"),
+                tooltip: t('Remove', 'Tanggalin'),
                 icon: const Icon(Icons.delete_outline),
-                onPressed: () => setState(() => pickedImages.remove(index)),
+                onPressed:
+                    isLoading
+                        ? null
+                        : () {
+                          setState(() {
+                            pickedImages.remove(index);
+                          });
+                        },
               ),
           ],
         ),
@@ -477,12 +664,14 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryRed = Color(0xFFD32F2F);
-    const Color lightGrey = Color(0xFFFAFAFA);
+    const primaryRed = Color(0xFFD32F2F);
+    const lightGrey = Color(0xFFFAFAFA);
+
+    final selected = selectedDocType;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t("Document Upload", "Mag-upload ng Dokumento")),
+        title: Text(t('Document Upload', 'Mag-upload ng Dokumento')),
         backgroundColor: primaryRed,
         centerTitle: true,
       ),
@@ -493,9 +682,9 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
             children: [
               DropdownButtonFormField<_DocType>(
                 isExpanded: true,
-                value: selectedDocType,
+                value: selected,
                 decoration: InputDecoration(
-                  labelText: t("Select Application", "Pumili ng Aplikasyon"),
+                  labelText: t('Select Application', 'Pumili ng Aplikasyon'),
                   filled: true,
                   fillColor: lightGrey,
                   border: OutlineInputBorder(
@@ -505,72 +694,69 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                 items:
                     docTypes
                         .map(
-                          (d) => DropdownMenuItem<_DocType>(
-                            value: d,
+                          (documentType) => DropdownMenuItem<_DocType>(
+                            value: documentType,
                             child: Text(
-                              d.title,
+                              documentType.title,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         )
                         .toList(),
                 onChanged:
-                    (val) => setState(() {
-                      selectedDocType = val;
-                      pickedImages.clear();
-                    }),
+                    isLoading
+                        ? null
+                        : (value) {
+                          setState(() {
+                            selectedDocType = value;
+                            pickedImages.clear();
+                            _sigController.clear();
+                          });
+                        },
               ),
               const SizedBox(height: 12),
               Expanded(
                 child:
-                    selectedDocType == null
+                    selected == null
                         ? Center(
                           child: Text(
                             t(
-                              "Choose an application to see requirements",
-                              "Pumili ng aplikasyon para makita ang requirements",
+                              'Choose an application to see requirements.',
+                              'Pumili ng aplikasyon para makita ang requirements.',
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         )
                         : ListView(
                           children: [
                             Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 8.0,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                               child: Text(
-                                t(
-                                      "Requirements for:",
-                                      "Mga kinakailangan para sa:",
-                                    ) +
-                                    " ${selectedDocType!.title}",
+                                '${t('Requirements for:', 'Mga kinakailangan para sa:')} ${selected.title}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                            ...selectedDocType!.requirements
-                                .asMap()
-                                .entries
-                                .map(
-                                  (entry) =>
-                                      _requirementRow(entry.key, entry.value),
-                                ),
+                            ...selected.requirements.asMap().entries.map(
+                              (entry) =>
+                                  _requirementRow(entry.key, entry.value),
+                            ),
                             const SizedBox(height: 12),
                             ListTile(
                               tileColor: Colors.grey[100],
-                              title: Text(t("Applicant", "Aplikante")),
+                              title: Text(t('Applicant', 'Aplikante')),
                               subtitle: Text(
                                 firstName.isEmpty && lastName.isEmpty
                                     ? userEmail
-                                    : "$firstName $lastName",
+                                    : '$firstName $lastName\n$userEmail',
                               ),
                             ),
                             const SizedBox(height: 12),
                             Text(
                               t(
-                                "Digital Signature (Required)",
-                                "Digital Signature (Kailangan)",
+                                'Digital Signature (Required)',
+                                'Digital Signature (Kailangan)',
                               ),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -588,45 +774,43 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                               ),
                             ),
                             TextButton(
-                              onPressed: () => _sigController.clear(),
+                              onPressed:
+                                  isLoading ? null : _sigController.clear,
                               child: Text(
-                                t("Clear Signature", "I-clear ang Signature"),
+                                t('Clear Signature', 'I-clear ang Signature'),
                               ),
                             ),
                           ],
                         ),
               ),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed:
-                          isLoading || !_allRequirementsFilled()
-                              ? null
-                              : _generatePdfAndUpload,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryRed,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child:
-                          isLoading
-                              ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                              : Text(
-                                t(
-                                  "Generate & Upload PDF",
-                                  "Gumawa at I-upload ang PDF",
-                                ),
-                              ),
-                    ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed:
+                      isLoading || selected == null || !_allRequirementsFilled()
+                          ? null
+                          : _generatePdfAndUpload,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryRed,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                ],
+                  child:
+                      isLoading
+                          ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                          : Text(
+                            t(
+                              'Generate & Upload PDF',
+                              'Gumawa at I-upload ang PDF',
+                            ),
+                          ),
+                ),
               ),
             ],
           ),
@@ -637,10 +821,13 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 }
 
 class _DocType {
+  final int id;
   final String title;
   final String code;
   final List<String> requirements;
+
   const _DocType({
+    required this.id,
     required this.title,
     required this.code,
     required this.requirements,
