@@ -905,6 +905,398 @@ router.put(
 );
 
 /* ======================================================
+   ADMIN FINAL REVIEW
+
+   PUT /api/documents/admin-review/:document_uid
+
+   Body:
+   {
+     "status": "approved" | "rejected",
+     "remarks": "optional for approval, required for rejection",
+     "changed_by": 1
+   }
+====================================================== */
+
+router.put(
+  "/admin-review/:document_uid",
+  async (req, res) => {
+    const { document_uid } = req.params;
+
+    const {
+      status,
+      remarks,
+      changed_by,
+    } = req.body;
+
+    const normalizedStatus =
+      normalizeStatus(status);
+
+    const allowedStatuses = [
+      "approved",
+      "rejected",
+    ];
+
+    if (!normalizedStatus) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required.",
+      });
+    }
+
+    if (
+      !allowedStatuses.includes(
+        normalizedStatus
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Admin may only approve or reject a document.",
+      });
+    }
+
+    const normalizedRemarks =
+      String(remarks || "").trim();
+
+    if (
+      normalizedStatus === "rejected" &&
+      !normalizedRemarks
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Remarks are required when rejecting a document.",
+      });
+    }
+
+    const connection =
+      await db.getConnection();
+
+    let cloudinaryMoved = false;
+    let previousFolder = null;
+    let cloudinaryPublicId = null;
+    let cloudinaryResourceType = "image";
+
+    try {
+      await connection.beginTransaction();
+
+      const [documentRows] =
+        await connection.query(
+          `
+          SELECT
+            d.id,
+            d.document_uid,
+            d.user_id,
+            d.title,
+            d.document_hash,
+
+            d.status AS previous_status,
+            d.is_locked,
+
+            d.cloudinary_url,
+            d.cloudinary_public_id,
+            d.cloudinary_asset_id,
+            d.cloudinary_resource_type,
+            d.cloudinary_folder,
+
+            dt.name AS document_type
+
+          FROM documents d
+
+          LEFT JOIN document_types dt
+            ON d.document_type_id = dt.id
+
+          WHERE d.document_uid = ?
+
+          LIMIT 1
+
+          FOR UPDATE
+          `,
+          [document_uid]
+        );
+
+      if (documentRows.length === 0) {
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message: "Document not found.",
+        });
+      }
+
+      const document = documentRows[0];
+
+      if (
+        Number(document.is_locked) === 1
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+          message:
+            "This document has already received a final decision and is locked.",
+        });
+      }
+
+      if (
+        document.previous_status !==
+        "pending_admin"
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+          message:
+            `Document cannot receive an admin decision from status '${document.previous_status}'.`,
+        });
+      }
+
+      if (
+        normalizedStatus === "approved" &&
+        !document.document_hash
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+          message:
+            "This document has no SHA-256 hash and cannot be approved.",
+        });
+      }
+
+      let updatedCloudinaryFolder =
+        document.cloudinary_folder ||
+        "audisure/staff-verified";
+
+      let updatedCloudinaryUrl =
+        document.cloudinary_url;
+
+      let updatedCloudinaryAssetId =
+        document.cloudinary_asset_id;
+
+      cloudinaryPublicId =
+        document.cloudinary_public_id;
+
+      cloudinaryResourceType =
+        document.cloudinary_resource_type ||
+        "image";
+
+      previousFolder =
+        updatedCloudinaryFolder;
+
+      /*
+       * Only approved documents are moved into
+       * audisure/admin-approved.
+       *
+       * Rejected documents remain in
+       * audisure/staff-verified for audit purposes.
+       */
+      if (
+        normalizedStatus === "approved"
+      ) {
+        const destinationFolder =
+          "audisure/admin-approved";
+
+        const movedAsset =
+          await moveCloudinaryAsset({
+            publicId:
+              cloudinaryPublicId,
+            resourceType:
+              cloudinaryResourceType,
+            destinationFolder,
+          });
+
+        cloudinaryMoved = true;
+
+        updatedCloudinaryFolder =
+          movedAsset.assetFolder;
+
+        updatedCloudinaryUrl =
+          movedAsset.secureUrl ||
+          updatedCloudinaryUrl;
+
+        updatedCloudinaryAssetId =
+          movedAsset.assetId ||
+          updatedCloudinaryAssetId;
+
+        cloudinaryPublicId =
+          movedAsset.publicId;
+
+        cloudinaryResourceType =
+          movedAsset.resourceType;
+      }
+
+      await connection.query(
+        `
+        UPDATE documents
+
+        SET
+          status = ?,
+          remarks = ?,
+
+          cloudinary_url = ?,
+          cloudinary_public_id = ?,
+          cloudinary_asset_id = ?,
+          cloudinary_resource_type = ?,
+          cloudinary_folder = ?,
+
+          approved_hash = ?,
+          approved_by = ?,
+          approved_at = ?,
+          is_locked = ?,
+
+          updated_at = NOW()
+
+        WHERE document_uid = ?
+        `,
+        [
+          normalizedStatus,
+          normalizedRemarks || null,
+
+          updatedCloudinaryUrl,
+          cloudinaryPublicId,
+          updatedCloudinaryAssetId,
+          cloudinaryResourceType,
+          updatedCloudinaryFolder,
+
+          normalizedStatus === "approved"
+            ? document.document_hash
+            : null,
+          normalizedStatus === "approved"
+            ? changed_by || null
+            : null,
+          normalizedStatus === "approved"
+            ? new Date()
+            : null,
+          1,
+
+          document_uid,
+        ]
+      );
+
+      await connection.query(
+        `
+        INSERT INTO document_history (
+          document_uid,
+          status,
+          remarks,
+          changed_by,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, NOW())
+        `,
+        [
+          document_uid,
+          normalizedStatus,
+          normalizedRemarks || null,
+          changed_by || document.user_id,
+        ]
+      );
+
+      const notification =
+        getNotificationContent(
+          normalizedStatus,
+          document.document_type ||
+            document.title,
+          normalizedRemarks
+        );
+
+      await connection.query(
+        `
+        INSERT INTO notifications (
+          user_id,
+          document_id,
+          document_uid,
+          title,
+          message,
+          notification_type,
+          is_read
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 0)
+        `,
+        [
+          document.user_id,
+          document.id,
+          document.document_uid,
+          notification.notificationTitle,
+          notification.message,
+          notification.notificationType,
+        ]
+      );
+
+      await connection.commit();
+
+      return res.json({
+        success: true,
+        message:
+          normalizedStatus === "approved"
+            ? "Document approved, locked, and moved to the admin-approved folder."
+            : "Document rejected successfully.",
+
+        document_uid,
+        previous_status:
+          document.previous_status,
+        status: normalizedStatus,
+        approved_hash:
+          normalizedStatus === "approved"
+            ? document.document_hash
+            : null,
+        is_locked: 1,
+        cloudinary_folder:
+          updatedCloudinaryFolder,
+        cloudinary_url:
+          updatedCloudinaryUrl,
+      });
+    } catch (error) {
+      await connection.rollback();
+
+      /*
+       * If Cloudinary moved successfully but the
+       * database transaction failed, attempt to return
+       * the asset to its previous folder.
+       */
+      if (
+        cloudinaryMoved &&
+        cloudinaryPublicId &&
+        previousFolder
+      ) {
+        try {
+          await moveCloudinaryAsset({
+            publicId:
+              cloudinaryPublicId,
+            resourceType:
+              cloudinaryResourceType,
+            destinationFolder:
+              previousFolder,
+          });
+        } catch (
+          compensationError
+        ) {
+          console.error(
+            "ADMIN CLOUDINARY MOVE ROLLBACK ERROR:",
+            compensationError
+          );
+        }
+      }
+
+      console.error(
+        "ADMIN REVIEW ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to complete the admin review.",
+      });
+    } finally {
+      connection.release();
+    }
+  }
+);
+
+/* ======================================================
    GET DOCUMENT FILES
 
    GET /api/documents/:document_uid
