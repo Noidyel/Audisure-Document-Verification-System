@@ -1,155 +1,342 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+
 import "../styles/dashboard.css";
 import "../styles/documents.css";
 
 export default function Documents() {
+  const BASE_URL =
+    "https://audisure-document-verification-system.onrender.com/api";
+
   const [documents, setDocuments] = useState([]);
-  const [statusMessage, setStatusMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const adminId = parseInt(localStorage.getItem("adminId") || "1");
 
-  // Base URL for deployed backend
-  const BASE_URL = "https://audisure-document-verification-system.onrender.com/api";
-
-  // Fetch documents
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     setLoading(true);
     setError("");
-    try {
-      const res = await fetch(`${BASE_URL}/documents`);
-      const data = await res.json();
 
-      if (Array.isArray(data)) {
-        const docsWithDefaults = data.map((doc) => ({
-          ...doc,
-          status: doc.status || "Pending",
-          document_hash: doc.document_hash || null,
-          file_path: doc.file_path || "#",
-          firstName: doc.firstName || "Unknown",
-          lastName: doc.lastName || "User",
-        }));
-        setDocuments(docsWithDefaults);
-      } else if (data.success === false) {
-        setError(data.message || "Failed to fetch documents");
+    try {
+      const response = await fetch(
+        `${BASE_URL}/documents/pending-admin`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(
+          data.message ||
+            `Unable to load documents (${response.status})`
+        );
       }
-    } catch (err) {
-      console.error(err);
-      setError("Error fetching documents from server. Check backend URL or CORS.");
+
+      const returnedDocuments = Array.isArray(data)
+        ? data
+        : Array.isArray(data.documents)
+          ? data.documents
+          : [];
+
+      setDocuments(returnedDocuments);
+    } catch (requestError) {
+      console.error(
+        "ADMIN DOCUMENT FETCH ERROR:",
+        requestError
+      );
+
+      setError(
+        requestError.message ||
+          "Unable to load documents from the server."
+      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [fetchDocuments]);
 
-  // Copy hash
-  const copyHash = (hash) => {
+  const copyHash = async (hash) => {
     if (!hash) return;
-    navigator.clipboard
-      .writeText(hash)
-      .then(() => alert("Document hash copied to clipboard!"))
-      .catch(() => alert("Failed to copy the hash. Please copy manually."));
+
+    try {
+      await navigator.clipboard.writeText(hash);
+      alert("Document hash copied.");
+    } catch (copyError) {
+      console.error("COPY HASH ERROR:", copyError);
+      alert("Unable to copy the document hash.");
+    }
   };
 
-  // Update document status
-  const updateStatus = async (docId, action) => {
-    try {
-      const res = await fetch(`${BASE_URL}/documents/update-status/${docId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: action, changed_by: adminId }),
-      });
+  const formatStatus = (status) => {
+    const normalizedStatus = String(
+      status || "pending_admin"
+    )
+      .trim()
+      .toLowerCase();
 
-      const data = await res.json();
+    switch (normalizedStatus) {
+      case "pending_admin":
+        return "Pending Admin Review";
 
-      if (data.success) {
-        setDocuments((prev) =>
-          prev.map((doc) =>
-            doc.id === docId
-              ? { ...doc, status: action.charAt(0).toUpperCase() + action.slice(1) }
-              : doc
+      case "approved":
+        return "Approved";
+
+      case "rejected":
+        return "Rejected";
+
+      case "needs_revision":
+        return "Needs Revision";
+
+      default:
+        return normalizedStatus
+          .replaceAll("_", " ")
+          .split(" ")
+          .filter(Boolean)
+          .map(
+            (word) =>
+              word.charAt(0).toUpperCase() +
+              word.slice(1)
           )
-        );
-        setStatusMessage(`✅ Changed status to '${action.charAt(0).toUpperCase() + action.slice(1)}'`);
-      } else {
-        alert(data.message || "Failed to update status in database");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error updating status");
+          .join(" ");
     }
+  };
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return "N/A";
+
+    const parsedDate = new Date(dateValue);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return dateValue;
+    }
+
+    return parsedDate.toLocaleString();
+  };
+
+  const getDocumentUrl = (document) => {
+    return (
+      document.cloudinary_url ||
+      document.file_path ||
+      document.file_url ||
+      ""
+    );
   };
 
   return (
     <div className="documents-section">
-      <h2>📂 Documents</h2>
+      <div className="documents-header">
+        <div>
+          <h2>Documents for Final Review</h2>
+          <p>
+            These documents have been verified by staff
+            and forwarded for administrator review.
+          </p>
+        </div>
 
-      {loading && <p>Loading documents...</p>}
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {statusMessage && <div className="status-message">{statusMessage}</div>}
+        <button
+          type="button"
+          className="refresh-btn"
+          onClick={fetchDocuments}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
 
-      {!loading && !error && (
-        <table className="documents-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>User</th>
-              <th>File</th>
-              <th>Status</th>
-              <th>Uploaded</th>
-              <th>Document Hash</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documents.map((doc) => {
-              const status = doc.status || "Pending";
-              const fileName = doc.file_path ? doc.file_path.split("/").pop() : "N/A";
-
-              return (
-                <tr key={doc.id} className={`doc-row status-${status.toLowerCase()}`}>
-                  <td>{doc.id || "N/A"}</td>
-                  <td>{doc.firstName} {doc.lastName}</td>
-                  <td>
-                    {doc.file_path ? (
-                      <a href={doc.file_path} target="_blank" rel="noopener noreferrer">
-                        {fileName}
-                      </a>
-                    ) : "N/A"}
-                  </td>
-                  <td className={`status-${status.toLowerCase()}`}>{status}</td>
-                  <td>{doc.created_at ? new Date(doc.created_at).toLocaleString() : "N/A"}</td>
-                  <td>
-                    <div className="hash-container">
-                      <span title={doc.document_hash || ""}>
-                        {doc.document_hash ? doc.document_hash.slice(0, 12) + "..." : "N/A"}
-                      </span>
-                      {doc.document_hash && (
-                        <button className="copy-btn" onClick={() => copyHash(doc.document_hash)}>Copy</button>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    {["Approved", "Rejected"].includes(status) ? (
-                      <span style={{ color: "gray", cursor: "not-allowed" }}>Approve | Pending | Reject</span>
-                    ) : (
-                      <>
-                        <button className="approve-btn" onClick={() => updateStatus(doc.id, "approved")}>Approve</button>{" "}
-                        |{" "}
-                        <button className="pending-btn" onClick={() => updateStatus(doc.id, "pending")}>Pending</button>{" "}
-                        |{" "}
-                        <button className="reject-btn" onClick={() => updateStatus(doc.id, "rejected")}>Reject</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {loading && (
+        <p className="documents-message">
+          Loading verified documents...
+        </p>
       )}
+
+      {!loading && error && (
+        <div className="documents-error">
+          <p>{error}</p>
+
+          <button
+            type="button"
+            onClick={fetchDocuments}
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {!loading &&
+        !error &&
+        documents.length === 0 && (
+          <div className="documents-empty">
+            <h3>No documents pending final review</h3>
+            <p>
+              Documents verified by staff will appear
+              here.
+            </p>
+          </div>
+        )}
+
+      {!loading &&
+        !error &&
+        documents.length > 0 && (
+          <div className="documents-table-wrapper">
+            <table className="documents-table">
+              <thead>
+                <tr>
+                  <th>UID</th>
+                  <th>Applicant</th>
+                  <th>Email</th>
+                  <th>Application Type</th>
+                  <th>Document</th>
+                  <th>Status</th>
+                  <th>Staff Remarks</th>
+                  <th>Date Submitted</th>
+                  <th>Document Hash</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {documents.map((document) => {
+                  const documentUrl =
+                    getDocumentUrl(document);
+
+                  const status =
+                    document.status ||
+                    "pending_admin";
+
+                  const applicantName =
+                    document.applicant_name ||
+                    "Unknown Applicant";
+
+                  const applicantEmail =
+                    document.email ||
+                    document.user_email ||
+                    "N/A";
+
+                  const applicationType =
+                    document.name ||
+                    document.document_type ||
+                    document.code ||
+                    "N/A";
+
+                  return (
+                    <tr
+                      key={
+                        document.id ||
+                        document.document_uid
+                      }
+                    >
+                      <td>
+                        <span
+                          className="document-uid"
+                          title={
+                            document.document_uid ||
+                            ""
+                          }
+                        >
+                          {document.document_uid ||
+                            "N/A"}
+                        </span>
+                      </td>
+
+                      <td>{applicantName}</td>
+
+                      <td>{applicantEmail}</td>
+
+                      <td>
+                        <div className="document-type">
+                          {document.code && (
+                            <strong>
+                              {document.code}
+                            </strong>
+                          )}
+
+                          <span>
+                            {applicationType}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td>
+                        {documentUrl ? (
+                          <a
+                            href={documentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="view-document-link"
+                          >
+                            View PDF
+                          </a>
+                        ) : (
+                          <span>N/A</span>
+                        )}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`document-status status-${String(
+                            status
+                          )
+                            .toLowerCase()
+                            .replaceAll("_", "-")}`}
+                        >
+                          {formatStatus(status)}
+                        </span>
+                      </td>
+
+                      <td>
+                        {document.remarks ||
+                          "No staff remarks"}
+                      </td>
+
+                      <td>
+                        {formatDate(
+                          document.created_at
+                        )}
+                      </td>
+
+                      <td>
+                        <div className="hash-container">
+                          <span
+                            title={
+                              document.document_hash ||
+                              ""
+                            }
+                          >
+                            {document.document_hash
+                              ? `${document.document_hash.slice(
+                                  0,
+                                  12
+                                )}...`
+                              : "N/A"}
+                          </span>
+
+                          {document.document_hash && (
+                            <button
+                              type="button"
+                              className="copy-btn"
+                              onClick={() =>
+                                copyHash(
+                                  document.document_hash
+                                )
+                              }
+                            >
+                              Copy
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
     </div>
   );
 }
