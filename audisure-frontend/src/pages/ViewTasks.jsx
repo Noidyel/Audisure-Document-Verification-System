@@ -3,7 +3,7 @@ import axios from "axios";
 import "../styles/userdashboard-features.css";
 
 // Always use deployed backend
-const BASE_URL = "https://audisure-backend.onrender.com/api";
+const BASE_URL = "https://audisure-document-verification-system.onrender.com/api";
 
 export default function ViewTasks() {
   const [tasks, setTasks] = useState([]);

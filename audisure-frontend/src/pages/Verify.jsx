@@ -3,7 +3,7 @@ import axios from "axios";
 import '../styles/dashboard.css';
 import "../styles/verify.css";
 
-const BASE_URL = "https://audisure-backend.onrender.com/api";
+const BASE_URL = "https://audisure-document-verification-system.onrender.com/api";
 
 export default function Verify() {
   const [users, setUsers] = useState([]);

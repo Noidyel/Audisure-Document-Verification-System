@@ -10,7 +10,7 @@ export default function Documents() {
   const adminId = parseInt(localStorage.getItem("adminId") || "1");
 
   // Base URL for deployed backend
-  const BASE_URL = "https://audisure-backend.onrender.com/api";
+  const BASE_URL = "https://audisure-document-verification-system.onrender.com/api";
 
   // Fetch documents
   const fetchDocuments = async () => {

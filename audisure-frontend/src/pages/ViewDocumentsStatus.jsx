@@ -10,7 +10,7 @@ export default function ViewStatus() {
   const userId = localStorage.getItem("userId"); // assuming userId is stored after login
 
   // Use your deployed backend URL
-  const BASE_URL = "https://audisure-backend.onrender.com/api";
+  const BASE_URL = "https://audisure-document-verification-system.onrender.com/api";
 
   useEffect(() => {
     if (!userId) {

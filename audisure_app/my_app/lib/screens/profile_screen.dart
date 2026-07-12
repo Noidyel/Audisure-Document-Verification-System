@@ -17,7 +17,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const Color primaryRed = Color(0xFFD32F2F);
   static const Color lightRed = Color(0xFFFFEBEE);
 
-  static const String backendUrl = 'https://audisure-backend.onrender.com';
+  static const String backendUrl =
+      'https://audisure-document-verification-system.onrender.com';
 
   String firstName = '';
   String lastName = '';
